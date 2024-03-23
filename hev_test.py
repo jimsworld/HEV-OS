@@ -5,19 +5,17 @@ armor = 100
 health = 100
 
 
-def calculate_damage(armor, health, thud):
+def calculate_physical(armor, health, thud):
     if armor >= thud:
         armor -= thud
-        # Applying a 20% of thud to health if armor is enough.
+        # Applies 20% of thud to health if armor is enough.
         health -= math.floor(thud * 0.20)
-
     else:
         # When thud exceeds armor, armor absorbs as much as it can (its current value),
-        # and the excess damage goes to health.
-        excess_damage = thud - armor
-        health -= excess_damage  # Only the excess damage impacts health.
+        # and the excess physical damage goes to health.
+        excess_physical = thud - armor
+        health -= excess_physical  # Only the excess of physical damage impacts health.
         armor = 0  # Armor is depleted.
-
     return armor, health
 
 
@@ -28,7 +26,7 @@ def enforce_non_negative(armor, health):
 
 
 def hit(armor, health, thud):
-    armor, health = calculate_damage(armor, health, thud)
+    armor, health = calculate_physical(armor, health, thud)
     armor, health = enforce_non_negative(armor, health)
     return armor, health
 
@@ -51,7 +49,7 @@ while True:
         case 'hit':
             thud = random.randint(1, 50)  # This updates thud value for each hit
             armor, health = hit(armor, health, thud)
-            print(f"---- {'Light' if thud < 25 else 'Heavy'} Thud, for {thud} damage")
+            print(f"---- {'Light' if thud < 25 else 'Heavy'} Thud, for {thud} physical damage")
         case 'heal':
             health = apply_restoration(health, 25, 100)
             print("---- Health has been restored!")
@@ -73,7 +71,7 @@ while True:
 # Creating functions for the health and armor regeneration actions.
 
 # "Health & Armor": You've already implemented the basic functionality for this area, such as healing and damage.
-# "Hit Detection - For Physical Damage": You'll need functions to handle light and heavy hits. You've already laid the groundwork for this! Adding some randomness to the damage can make it more dynamic.
+# "Hit Detection - For Physical Damage": You'll need functions to handle light and heavy hits. You've already laid the groundwork for this! Adding some randomness to the physical damage can make it more dynamic.
 # "Boops & Fuzz": Functions could handle playing the correct sound corresponding to the health level.
 # "Suit Advise": Functions could handle the suit advice logic, triggering the appropriate advice based on the current health level.
 # "Suit Aid": Functionality could handle scenarios involving heavy hits.
