@@ -1,8 +1,9 @@
-### version 5.3 ###
+### version 5.4 ###
 import random
 import math
 armor = 100
 health = 100
+energy_types = ['heat', 'shock', 'biohazard', 'chemical', 'radiation']
 
 
 def calculate_physical(armor, health, thud):
@@ -11,8 +12,8 @@ def calculate_physical(armor, health, thud):
         # Applies 20% of thud to health if armor is enough.
         health -= math.floor(thud * 0.20)
     else:
-        # When thud exceeds armor, armor absorbs as much as it can (its current value),
-        # and the excess physical damage goes to health.
+        # When thud exceeds armor, armor absorbs as much as it can,
+        #(its current value) and the excess physical damage goes to health.
         excess_physical = thud - armor
         health -= excess_physical  # Only the excess of physical damage impacts health.
         armor = 0  # Armor is depleted.
@@ -69,8 +70,9 @@ while True:
             print(f"---- {'Light' if thud < 25 else 'Heavy'} Thud, for {thud} physical damage")
         case 'hazard':
             hazard = random.randint(1, 40)  # This updates thud value for each hazard
+            energy_type = random.choice(energy_types)
             armor, health = energy_hit(armor, health, hazard)
-            print(f"---- Hazard, for {hazard} energy damage")
+            print(f"---- {energy_type.title()} hazard, for {hazard} energy damage")
         case 'heal':
             health = apply_restoration(health, 25, 100)
             print("---- Health has been restored!")
