@@ -1,4 +1,4 @@
-### version 5.1 ###
+### version 5.3 ###
 import random
 import math
 armor = 100
@@ -19,14 +19,30 @@ def calculate_physical(armor, health, thud):
     return armor, health
 
 
+def calculate_energy(armor, health, hazard):
+    if armor >= hazard:
+        armor -= hazard
+    else:
+        excess_energy = hazard - armor
+        health -= excess_energy
+        armor = 0
+    return armor, health
+
+
 def enforce_non_negative(armor, health):
     armor = max(armor, 0)
     health = max(health, 0)
     return armor, health
 
 
-def hit(armor, health, thud):
+def physical_hit(armor, health, thud):
     armor, health = calculate_physical(armor, health, thud)
+    armor, health = enforce_non_negative(armor, health)
+    return armor, health
+
+
+def energy_hit(armor, health, hazard):
+    armor, health = calculate_energy(armor, health, hazard)
     armor, health = enforce_non_negative(armor, health)
     return armor, health
 
@@ -40,16 +56,21 @@ def apply_restoration(current_value, amount, max_value):
 
 while True:
     print("\nHEV Suit test ready. Enter:"
-          "\n'hit' for a random attack between 1 - 50"
-          "\n'heal' to heal 25HP"
-          "\n'repair' to repair 25AP"
-          "\n'quit' to exit.")
+          "\n'hit':     physical attack between 1 - 50"
+          "\n'hazard':  energy hazard between 1 - 40"
+          "\n'heal':    heals 25HP"
+          "\n'repair':  repairs 25AP"
+          "\n'quit':    exits.")
     user_input = input()
     match user_input:
         case 'hit':
             thud = random.randint(1, 50)  # This updates thud value for each hit
-            armor, health = hit(armor, health, thud)
+            armor, health = physical_hit(armor, health, thud)
             print(f"---- {'Light' if thud < 25 else 'Heavy'} Thud, for {thud} physical damage")
+        case 'hazard':
+            hazard = random.randint(1, 40)  # This updates thud value for each hazard
+            armor, health = energy_hit(armor, health, hazard)
+            print(f"---- Hazard, for {hazard} energy damage")
         case 'heal':
             health = apply_restoration(health, 25, 100)
             print("---- Health has been restored!")
