@@ -1,9 +1,12 @@
-### version 5.4 ###
+### version 5.5 ###
 import random
 import math
 armor = 100
 health = 100
-energy_types = ['heat', 'shock', 'biohazard', 'chemical', 'radiation']
+energy_types = ['heat', 'shock', 'bio', 'chemical', 'radiation']
+
+hazard_turn = 15
+hazard_turn_counter = 0
 
 
 def calculate_physical(armor, health, thud):
@@ -62,14 +65,16 @@ while True:
           "\n'heal':    heals 25HP"
           "\n'repair':  repairs 25AP"
           "\n'quit':    exits.")
+
     user_input = input()
     match user_input:
         case 'hit':
-            thud = random.randint(1, 50)  # This updates thud value for each hit
+            hazard_turn_counter += random.randint(1, 5)  # Increment the hazard counter
+            thud = random.randint(1, 50)  # This randomises damage value for each hit
             armor, health = physical_hit(armor, health, thud)
             print(f"---- {'Light' if thud < 25 else 'Heavy'} Thud, for {thud} physical damage")
         case 'hazard':
-            hazard = random.randint(1, 40)  # This updates thud value for each hazard
+            hazard = random.randint(1, 40)  # This randomises energy value for each hazard
             energy_type = random.choice(energy_types)
             armor, health = energy_hit(armor, health, hazard)
             print(f"---- {energy_type.title()} hazard, for {hazard} energy damage")
@@ -84,6 +89,14 @@ while True:
             break
         case _:
             print("Unknown command. Please enter 'hit', 'heal', 'repair' or 'quit'.")
+
+    if hazard_turn_counter >= hazard_turn:
+        hazard = random.randint(1, 40)  # This randomises energy value for each hazard
+        energy_type = random.choice(energy_types)
+        armor, health = energy_hit(armor, health, hazard)
+        print(f"---- {energy_type.title()} hazard, for {hazard} energy damage")
+        hazard_turn_counter = 0
+
     print("==== Remaining armor: ", armor)
     print("==== Remaining health: ", health)
 
@@ -99,4 +112,5 @@ while True:
 # "Suit Advise": Functions could handle the suit advice logic, triggering the appropriate advice based on the current health level.
 # "Suit Aid": Functionality could handle scenarios involving heavy hits.
 # "Timed Alerts - For Energy Damage": You could implement functionality for the energy damage inflicted at fixed time intervals.
-# I suggest focusing on one of these areas at a time, preferably one that has dependencies on others. Which area are you eager to dive into? And do you perceive any function that you would require assistance with?
+# I suggest focusing on one of these areas at a time, preferably one that has dependencies on others.
+# Note this whole program will need to be written in Arduino.
