@@ -1,0 +1,212 @@
+---------------------------------------------------------------------------
+Control scheme, ideally so that button actions are consistant
+whether lights are on or off.
+
+---------------------------------------------------------------------------
+Optional #defines:
+#define FEMALE_TALKIE_VOICE     - To use a female voice version of onboard Talkie.
+								  (unsure if needed for HEV?)
+
+---------------------------------------------------------------------------
+
+=================================================================
+========================= Combat Mode ===========================
+=================================================================
+
+"Combat Mode 1.0":
+#define COMBAT_MODE
+
+- Toggling ON Combat Mode will enable clash input/detection.
+  A togglable mode that simulates the HEV Suit user sustaining health/armor damage.
+
+- Features are based on the findings in this video - https://www.youtube.com/watch?v=6oPGjA5-4AM (1:40).
+
+
+**************************   Health & Armor   ****************************
+
+- Health (health) and Armor (armor) have seperate pools of health. Both range from 0 - 100.
+  
+- armor should negate how much health gets subtracted. The formula in game for Normal difficulty (apparently):
+  Armor will generally absorb 80% of damage, up until the point of where you are depleted of it,
+  at which point 100% of damage is commited to your Health. Hence, even if you have 100% Armor,
+  your Health is still affected when you take damage.
+  Essentially, whenever there is armor, health should take 20% of physical damage.
+  
+- The amount of health/armor taken away depends on the amount of (real life) force to the chest plate.
+  Maximum of 50 per hit.
+
+- To regenerate health and armor, hold AUX and POW respectively. I believe it takes 10s to recharge from 0 - 100.
+
+- When armor is 0, play boophighdouble.wav, then armor_compromised.wav followed by hev_damage.wav.
+  Or...I could just mash these together in Audacity.
+
+- Similarly, when calling armor readout, if armor is 100, play power_level_is_100.wav.
+
+*****************   Hit Detection - For Physical Damage   *****************
+
+- Hit Detection is measured by some form of clash monitoring/threshold. Will need testing.
+  Similar to fett263's Responsive Clash detection, where the higher the input recieved,
+  the higher the damage sustained to health and armor which are accompanied by audible cues via certain wavs.
+  
+  if (real life) force is applied to the chest plate, Physical Damage is taken and will always play either of two "hit" wavs.
+  Which one plays depends on the Thud recieved, measured by Responsive Clash.
+  Should we call this Responsive Thud?
+  
+	if:
+		Light Thud - play pl_pain2.wav.
+		Followed by either minor_fracture.wav or minor_lacerations.wav.
+		45% chance of either of these "medical\detected\physical" voicelines playing,
+		as it would get it annoying after everytime.
+		Cooldown of 15s before playing another "medical\detected\physical" voiceline.
+	else:
+		Heavy Thud - play pl_fallpain3.wav.
+		Followed by either major_fracture.wav or major_lacerations.wav.
+		45% chance of either of these "medical\detected\physical" voicelines playing,
+		as it would get it annoying after everytime.
+		Cooldown of 15s before playing another "medical\detected\physical" voiceline.
+
+
+-------------------------------- Boops & Fuzz --------------------------------
+
+- Depending on current health, either one of three boop wavs play.
+  if playing a "medical\detected\physical" voiceline is True, beeps always play at the same time as a "hit" wav.
+  (So before a voiceline plays).
+  Just to reiterate, the boop sounds only play if a voiceline is called.
+  
+	if:
+		health >= 50 - play booplow.wav
+	elif:
+		health < 50 - play boopmid.wav
+	elif:
+		health <= 30 - play boophigh.wav
+
+- (Side note) - I edited these 3 boop wavs to demonstrate the concept, as I'm under the impression
+				that the suit dynamically changes the pitch and tempo of the boops depending
+				on the user's current health. More of this can be seen in my video:
+				https://youtu.be/zAka_vIXxtw?si=ACw29pQapn8aEZTp
+				
+				***armor Readouts***
+				- (UPDATE) did some testing in game, with regards to the x2 fuzz.wavs that play before an armor readout,
+				the suit seems to just pick one of two before the percentage readout. One is normal pitch and the other
+				is slightly high in pitch. It would be cool if the OS just picks one of these fuzz wavs to play before
+				the armor readout.
+				I've put these together, they are in "HEVcommon\misc" - fuzzdouble.wav and fuzzhighdouble.wav.
+  
+
+-------------------------------- Suit ADVISE --------------------------------
+
+- Similar to the health values above, the suit will tell the user to "seek medical attention" or similar.
+  Three wavs should play after the "medical\detected\physical" voicelines.
+  Each of these have a cooldown of 120s (2 minutes).
+  
+	if:
+		health <= 50 - play seek_medic.wav after "medical\detected\physical" voiceline.
+	elif:
+		health <= 30 - play health_critical.wav after "medical\detected\physical" voiceline.
+	elif:
+		health <= 6 - play near_death.wav after "medical\detected\physical" voiceline.
+		
+
+-------------------------------- Suit AID --------------------------------
+
+- Upon receiving the first Heavy Thud, or any damage greater than 50, the suit will administer a morphine shot.
+  This should be played after either major_fracture.wav or major_lacerations.wav.
+  Afterwards there is a 5 minutes wait (300s) before the next morphine shot can be given.
+	if:
+		Heavy Thud - play morphine_shot_heavythud.wav.
+		Play directly after major_fracture.wav and/or major_lacerations.wav.
+
+
+*****************   Timed Alerts - For Energy Damage   *****************
+
+Timed Alerts - 	(We can honestly change these names) There are several voiced alerts whenever the HEV Suit user
+				comes into contact with hazardous elemental substances. I figured the best way of incopoorating these
+				sounds is to give them a chance of playing automatically every 10 - 20mins.
+				I suggest a chance rate of 60% - 75% for specifically only one of these occuring within every 10 - 20mins.
+				Instead of a fixed damage number, it would make it interesting to apply a random number
+				for damage recieved, so like either 1 - 40 damage if Radiation is called.
+				Example:
+
+Radiation = if > 600s and < 1200s:
+				60% chance of - play radiation_detected_blipblipblip.wav
+								Apply 1 - 40 damage to armor and then negate 20% to current health.
+								Would be 1 - 40 damage to health with 0 armor.
+	
+				These should be followed up by any "Suit Advise" prompts, noted above, if Health has dropped below
+				a certain number.
+				Given this, I'd suggest that these Energy Damages should probably just apply a flat random damage,
+				instead of damage over time (which I suggested in my vid 1:12) as we'll probably never really see
+				it diminishing over time, UNLESS I redo the suit and install an OLED screen. Jk...
+
+Heat 	  = if > 600s and < 1200s:
+				60% chance of - play heat_damage_boophigh.wav
+								Apply 20 - 40 damage to armor and then negate 20% to current health.
+								Would be 20 - 40 damage to health with 0 armor.
+				
+The same logic should be applied to the other various Energy Damages:
+
+- Shock
+- Biohazard
+- Chemical
+- Blood Toxins (Maybe this one could randomly proc if energy damage has applied to health and I havn't healed in over 5 minutes.)
+- Blood Loss (this one plays when you get shot...hmmmmm.)
+- Internal Bleeding (this one was cut from the game, so not sure about this either.)
+
+
+====================== 2 BUTTON CONTROLS ========================
+				 | Sorted by ON or OFF state |
+=================================================================
+
+Short click - 0.5s
+Long click  - 1.5s
+
+*************   WHILE LIGHTS ARE OFF   ***************
+Turn lights ON        - Click POW.
+Turn lights ON Muted  - x3 click + hold POW.
+Next Preset           - Click AUX.
+Prev Preset           - Short click AUX.
+Combat Mode:
+		Toggle		  - x2 click + hold POW.
+		Health		  - Hold AUX.
+		Armor		  - Hold POW.
+Track Player:
+		Enter/Exit	  - Hold AUX + x2 click POW.
+		Next Track	  - Click AUX.
+		Prev Track	  - Click POW.
+		Random Track  - Short click POW.
+Volume Menu:
+        Enter/Exit    - Hold POW + click AUX.
+        Volume UP     - Click AUX.
+        Volume DOWN   - Click POW.
+        Quick MAX Vol - Short click AUX while in Volume Menu.
+        Quick MIN Vol - Short click POW while in Volume Menu.
+Spoken Battery Level:
+        in percentage - x3 click POW.
+
+*************   WHILE LIGHTS ARE ON   ****************
+Turn lights OFF       - Click POW.
+Play/Stop Track       - Hold AUX + x2 click POW.
+Clash[Hit]         	  - No buttons, just tap the chest plate, with varying force (not too hard).
+Blaster Blocks        - Click AUX.
+Lockup/[Health]       - Hold AUX.
+Drag                  - Hold AUX + click POW.
+LB/[Armor] 			  - Hold POW.
+Melt                  - 
+Force Effect          - 
+Quote Effect          - x2 click POW.
+Toggle Force/Quote	  - x4 click POW
+Random Force & Quote  - x4 click + hold POW.
+PowerSave Dim lights  - Hold POW + click AUX.
+        (To use Power Save requires AlphaL based EffectSequence in style)
+Combat Mode:
+		Toggle		  - x2 click + hold POW.
+		Health		  - Hold AUX.
+		Armor		  - Hold POW.
+Color Change Mode:
+		Enter		  - x3 click + hold POW.
+        Next Color    - Click AUX.
+        Prev Colour   - Click POW.
+        Exit          - Long click POW to SAVE color selection and exit.
+                      - Long click AUX to CANCEL and restore original color.
+Spoken Battery Level:
+        in percentage - x3 click POW.
