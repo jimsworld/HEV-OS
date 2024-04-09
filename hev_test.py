@@ -113,4 +113,4 @@ while True:
 # "Suit Aid": Functionality could handle scenarios involving heavy hits.
 # "Timed Alerts - For Energy Damage": You could implement functionality for the energy damage inflicted at fixed time intervals.
 # I suggest focusing on one of these areas at a time, preferably one that has dependencies on others.
-# Note this whole program will need to be written in Arduino.
+# Note this whole program will need to be written in Arduino
