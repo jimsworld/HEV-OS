@@ -1,13 +1,49 @@
-### version 5.5 ###
+### version 5.6 ###
+
 import random
 import math
+import os
+import pygame
+pygame.init()
+
 armor = 100
 health = 100
 energy_types = ['heat', 'shock', 'bio', 'chemical', 'radiation']
 
 hazard_turn = 15
 hazard_turn_counter = 0
+show_instructions = True
 
+
+############ Loads HEVcommon ############
+
+def load_sounds(directory):
+    sounds = {}
+    for root, dirs, files in os.walk(directory):
+        # Path from root to current directory
+        path_parts = root.split(os.sep)
+        
+        # Initialize a temporary dictionary based on path_parts
+        temp_dict = sounds
+        for part in path_parts[1:]:  # Skip the first part, as it's the main directory
+            temp_dict = temp_dict.setdefault(part, {})
+        
+        # Load each .wav file in the current directory
+        for file in files:
+            if file.endswith('.wav'):
+                # Form the key from the file name without its extension
+                key = file[:-4]
+                # Load the sound and assign it to the correct place in the nested dictionary
+                temp_dict[key] = pygame.mixer.Sound(os.path.join(root, file))
+    return sounds
+
+
+all_sounds = load_sounds('HEVcommon')
+# Example usage:
+# all_sounds['subfolder']['another_subfolder']['sound_key'].play()
+
+
+############ Armor & Health and Damage Calculations ############
 
 def calculate_physical(armor, health, thud):
     if armor >= thud:
@@ -22,7 +58,6 @@ def calculate_physical(armor, health, thud):
         armor = 0  # Armor is depleted.
     return armor, health
 
-
 def calculate_energy(armor, health, hazard):
     if armor >= hazard:
         armor -= hazard
@@ -33,17 +68,18 @@ def calculate_energy(armor, health, hazard):
     return armor, health
 
 
+#---- Enforcing non negative Armor & Health values
 def enforce_non_negative(armor, health):
     armor = max(armor, 0)
     health = max(health, 0)
     return armor, health
 
 
+#---- Damage Application for Physical and Energy
 def physical_hit(armor, health, thud):
     armor, health = calculate_physical(armor, health, thud)
     armor, health = enforce_non_negative(armor, health)
     return armor, health
-
 
 def energy_hit(armor, health, hazard):
     armor, health = calculate_energy(armor, health, hazard)
@@ -51,6 +87,7 @@ def energy_hit(armor, health, hazard):
     return armor, health
 
 
+#---- Healing and Repair
 def apply_restoration(current_value, amount, max_value):
     updated_value = current_value + amount
     if updated_value > max_value:
@@ -58,15 +95,19 @@ def apply_restoration(current_value, amount, max_value):
     return updated_value
 
 
-while True:
-    print("\nHEV Suit test ready. Enter:"
-          "\n'hit':     physical attack between 1 - 50"
-          "\n'hazard':  energy hazard between 1 - 40"
-          "\n'heal':    heals 25HP"
-          "\n'repair':  repairs 25AP"
-          "\n'quit':    exits.")
+############ Command Input and Console Output ############
 
-    user_input = input()
+while True:
+    if show_instructions:
+        print("\nHEV Suit test ready. Available commands:"
+            "\n'hit':     physical attack between 1 - 50"
+            "\n'hazard':  energy hazard between 1 - 40"
+            "\n'heal':    heals 25HP"
+            "\n'repair':  repairs 25AP"
+            "\n'quit':    exits.")
+        show_instructions = False  # Stops repetitive instructions
+
+    user_input = input("\nEnter command: ")
     match user_input:
         case 'hit':
             hazard_turn_counter += random.randint(1, 5)  # Increment the hazard counter
@@ -90,7 +131,7 @@ while True:
         case _:
             print("Unknown command. Please enter 'hit', 'heal', 'repair' or 'quit'.")
 
-    if hazard_turn_counter >= hazard_turn:
+    if hazard_turn_counter >= hazard_turn:  # Triggers a random hazard when threshold is met
         hazard = random.randint(1, 40)  # This randomises energy value for each hazard
         energy_type = random.choice(energy_types)
         armor, health = energy_hit(armor, health, hazard)
@@ -101,16 +142,11 @@ while True:
     print("==== Remaining health: ", health)
 
 
-# make a list of all the SFX that'll be used for Combat Mode
+# Make a list of all the SFX that'll be used for Combat Mode.
 
-# Next steps could include:
-# Creating functions for the health and armor regeneration actions.
-
-# "Health & Armor": You've already implemented the basic functionality for this area, such as healing and damage.
-# "Hit Detection - For Physical Damage": You'll need functions to handle light and heavy hits. You've already laid the groundwork for this! Adding some randomness to the physical damage can make it more dynamic.
 # "Boops & Fuzz": Functions could handle playing the correct sound corresponding to the health level.
 # "Suit Advise": Functions could handle the suit advice logic, triggering the appropriate advice based on the current health level.
 # "Suit Aid": Functionality could handle scenarios involving heavy hits.
 # "Timed Alerts - For Energy Damage": You could implement functionality for the energy damage inflicted at fixed time intervals.
-# I suggest focusing on one of these areas at a time, preferably one that has dependencies on others.
+# Focus on one of these areas at a time, preferably one that has dependencies on others.
 # Note this whole program will need to be written in Arduino
