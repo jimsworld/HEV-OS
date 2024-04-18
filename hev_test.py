@@ -1,4 +1,4 @@
-### version 5.6 ###
+### version 5.7 ###
 
 import random
 import math
@@ -42,6 +42,30 @@ all_sounds = load_sounds('HEVcommon')
 # Example usage:
 # all_sounds['subfolder']['another_subfolder']['sound_key'].play()
 
+############ Plays HEVcommon ############
+
+def play_sound(sound_path):
+    try:
+        # Start with the base dictionary.
+        current_dict = all_sounds
+        # Iterate through the parts of the path to navigate the nested dictionaries.
+        for key in sound_path:
+            current_dict = current_dict[key]
+        # Play the sound at the end of the path.
+        current_dict.play()
+    except KeyError:
+        # Handle the case where any part of the path is incorrect.
+        print(f"Warning: The sound at path '{sound_path}' does not exist.")
+
+
+####################################
+
+#---- Enforcing non negative Armor & Health values
+def enforce_non_negative(armor, health):
+    armor = max(armor, 0)
+    health = max(health, 0)
+    return armor, health
+
 
 ############ Armor & Health and Damage Calculations ############
 
@@ -52,10 +76,15 @@ def calculate_physical(armor, health, thud):
         health -= math.floor(thud * 0.20)
     else:
         # When thud exceeds armor, armor absorbs as much as it can,
-        #(its current value) and the excess physical damage goes to health.
+        #(it's current value) and the excess physical damage goes to health.
         excess_physical = thud - armor
         health -= excess_physical  # Only the excess of physical damage impacts health.
         armor = 0  # Armor is depleted.
+    print("Health before playing sound:", health)
+    if thud >= 25 and health > 0:
+        play_sound(['hit', 'pl_fallpain3'])
+    else:
+        play_sound(['hit', 'pl_pain2'])
     return armor, health
 
 def calculate_energy(armor, health, hazard):
@@ -68,19 +97,14 @@ def calculate_energy(armor, health, hazard):
     return armor, health
 
 
-#---- Enforcing non negative Armor & Health values
-def enforce_non_negative(armor, health):
-    armor = max(armor, 0)
-    health = max(health, 0)
-    return armor, health
-
-
-#---- Damage Application for Physical and Energy
+#---- Damage Application for Physical
 def physical_hit(armor, health, thud):
     armor, health = calculate_physical(armor, health, thud)
     armor, health = enforce_non_negative(armor, health)
     return armor, health
 
+
+#---- Damage Application for Energy
 def energy_hit(armor, health, hazard):
     armor, health = calculate_energy(armor, health, hazard)
     armor, health = enforce_non_negative(armor, health)
@@ -94,6 +118,8 @@ def apply_restoration(current_value, amount, max_value):
         updated_value = max_value
     return updated_value
 
+
+####################################
 
 ############ Command Input and Console Output ############
 
