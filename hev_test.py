@@ -1,4 +1,4 @@
-### version 5.7 ###
+### version 5.8 ###
 
 import random
 import math
@@ -44,6 +44,7 @@ all_sounds = load_sounds('HEVcommon')
 # Example usage:
 # all_sounds['subfolder']['another_subfolder']['sound_key'].play()
 
+
 ####################################
 
 ############ Plays HEVcommon ############
@@ -64,17 +65,7 @@ def play_sound(sound_path):
 
 ####################################
 
-############ Enforce Non-Negative Values ############
-
-def enforce_non_negative(armor, health):
-    armor = max(armor, 0)
-    health = max(health, 0)
-    return armor, health
-
-
-####################################
-
-############ Armor & Health and Damage Calculations ############
+############ Damage Calculations ############
 
 def calculate_physical(armor, health, thud):
     if health > 0:
@@ -87,7 +78,7 @@ def calculate_physical(armor, health, thud):
             excess_physical = thud - armor
             health -= excess_physical  # Only the excess of physical damage impacts health.
             armor = 0  # Armor is depleted.
-        print(f"Playing sound for thud {thud}, Current health: {health}")  # Debug print
+#        print(f"Playing sound for thud {thud}, Current health: {health}")  # Debug print
         if thud >= 25:
             play_sound(['hit', 'pl_fallpain3'])
         else:
@@ -103,6 +94,20 @@ def calculate_energy(armor, health, hazard):
         armor = 0
     return armor, health
 
+
+####################################
+
+############ Enforce Non-Negative Values ############
+
+def enforce_non_negative(armor, health):
+    armor = max(armor, 0)
+    health = max(health, 0)
+    return armor, health
+
+
+####################################
+
+############ Damage Application and Healing ############
 
 #---- Damage Application for Physical
 def physical_hit(armor, health, thud):
@@ -178,6 +183,7 @@ while True:
 ####################################
 
 # Make a list of all the SFX that'll be used for Combat Mode.
+#(Probably unecessary now since there is a function that dynamically creates a dictionary related to the HEVcommon directory.)
 
 # "Boops & Fuzz": Functions could handle playing the correct sound corresponding to the health level.
 # "Suit Advise": Functions could handle the suit advice logic, triggering the appropriate advice based on the current health level.
