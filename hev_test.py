@@ -68,21 +68,13 @@ def play_sound(sound_path):
 ############ Damage Calculations ############
 
 def calculate_physical(armor, health, thud):
-    if health > 0:
-        if armor >= thud:
-            armor -= thud
-            health -= math.floor(thud * 0.20)  # Applies 20% of thud to health, if armor is enough.
-        else:
-            # When thud exceeds armor, armor absorbs as much as it can,
-            #(it's current value) and the excess physical damage goes to health.
-            excess_physical = thud - armor
-            health -= excess_physical  # Only the excess of physical damage impacts health.
-            armor = 0  # Armor is depleted.
-#        print(f"Playing sound for thud {thud}, Current health: {health}")  # Debug print
-        if thud >= 25:
-            play_sound(['hit', 'pl_fallpain3'])
-        else:
-            play_sound(['hit', 'pl_pain2'])
+    if armor >= thud:
+        armor -= thud
+        health -= math.floor(thud * 0.20)  # Applies 20% of thud to health, if armor is enough.
+    else:
+        excess_physical = thud - armor
+        health -= excess_physical  # Only the excess of physical damage impacts health.
+        armor = 0  # Armor is depleted.
     return armor, health
 
 def calculate_energy(armor, health, hazard):
@@ -133,9 +125,29 @@ def apply_restoration(current_value, amount, max_value):
 
 ####################################
 
+############ Sound Engine ############
+
+#---- Hit Sounds
+def hit_sound(thud):
+    if thud >= 25:
+        play_sound(['hit', 'pl_fallpain3'])
+    else:
+        play_sound(['hit', 'pl_pain2'])
+
+#---- HEV Compromised Complete
+armor_compromised_played = False
+def armor_compromised(armor):
+    chance_to_play = 0.5  # 50% chance
+    if armor <= 0 and random.random() < chance_to_play:
+        play_sound(['armor', 'armor_compromised_complete'])
+
+####################################
+
 ############ Command Input and Console Output ############
 
 while True:
+
+    #Instructions
     if show_instructions:
         print("\nHEV Suit test ready. Available commands:"
             "\n'hit':     physical attack between 1 - 50"
@@ -145,30 +157,40 @@ while True:
             "\n'quit':    exits.")
         show_instructions = False  # Stops repetitive instructions
 
+    #User Input
     user_input = input("\nEnter command: ")
     match user_input:
+
         case 'hit':
             hazard_turn_counter += random.randint(1, 5)  # Increment the hazard counter
             thud = random.randint(1, 50)  # This randomises damage value for each hit
+            if health > 0:  # Adds Hit Sound as long as health is above 0
+                hit_sound(thud)
             armor, health = physical_hit(armor, health, thud)
             print(f"---- {'LIGHT' if thud < 25 else 'HEAVY'} Thud, -{thud} physical damage")
+
         case 'hazard':
             hazard = random.randint(1, 40)  # This randomises energy value for each hazard
             energy_type = random.choice(energy_types)
             armor, health = energy_hit(armor, health, hazard)
             print(f"---- {energy_type.title()} hazard, -{hazard} energy damage")
+
         case 'heal':
             health = apply_restoration(health, 25, 100)
             print("---- Health has been restored!")
+
         case 'repair':
             armor = apply_restoration(armor, 25, 100)
             print("---- Armor has been repaired!")
+
         case 'quit':
             print("HEV Suit shutting down.")
             break
+
         case _:
             print("Unknown command. Please enter 'hit', 'heal', 'repair' or 'quit'.")
 
+    #Random Hazard
     if hazard_turn_counter >= hazard_turn:  # Triggers a random hazard when threshold is met
         hazard = random.randint(1, 40)  # This randomises energy value for each hazard
         energy_type = random.choice(energy_types)
@@ -176,6 +198,16 @@ while True:
         print(f"---- {energy_type.title()} hazard, for {hazard} energy damage")
         hazard_turn_counter = 0
 
+    #-Sound Playback-
+    #-HEV Compromised Complete-
+    if not armor_compromised_played:
+        armor_compromised(armor)
+        armor_compromised_played = True
+    elif armor > 0:
+        armor_compromised_played = False
+
+
+    #Armor and Health Readouts
     print("==== Remaining armor: ", armor)
     print("==== Remaining health: ", health)
 
