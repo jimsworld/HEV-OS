@@ -15,6 +15,8 @@ hazard_turn_counter = 0
 show_instructions = True
 
 
+####################################
+
 ############ Loads HEVcommon ############
 
 def load_sounds(directory):
@@ -42,6 +44,8 @@ all_sounds = load_sounds('HEVcommon')
 # Example usage:
 # all_sounds['subfolder']['another_subfolder']['sound_key'].play()
 
+####################################
+
 ############ Plays HEVcommon ############
 
 def play_sound(sound_path):
@@ -60,31 +64,34 @@ def play_sound(sound_path):
 
 ####################################
 
-#---- Enforcing non negative Armor & Health values
+############ Enforce Non-Negative Values ############
+
 def enforce_non_negative(armor, health):
     armor = max(armor, 0)
     health = max(health, 0)
     return armor, health
 
 
+####################################
+
 ############ Armor & Health and Damage Calculations ############
 
 def calculate_physical(armor, health, thud):
-    if armor >= thud:
-        armor -= thud
-        # Applies 20% of thud to health if armor is enough.
-        health -= math.floor(thud * 0.20)
-    else:
-        # When thud exceeds armor, armor absorbs as much as it can,
-        #(it's current value) and the excess physical damage goes to health.
-        excess_physical = thud - armor
-        health -= excess_physical  # Only the excess of physical damage impacts health.
-        armor = 0  # Armor is depleted.
-    print("Health before playing sound:", health)
-    if thud >= 25 and health > 0:
-        play_sound(['hit', 'pl_fallpain3'])
-    else:
-        play_sound(['hit', 'pl_pain2'])
+    if health > 0:
+        if armor >= thud:
+            armor -= thud
+            health -= math.floor(thud * 0.20)  # Applies 20% of thud to health, if armor is enough.
+        else:
+            # When thud exceeds armor, armor absorbs as much as it can,
+            #(it's current value) and the excess physical damage goes to health.
+            excess_physical = thud - armor
+            health -= excess_physical  # Only the excess of physical damage impacts health.
+            armor = 0  # Armor is depleted.
+        print(f"Playing sound for thud {thud}, Current health: {health}")  # Debug print
+        if thud >= 25:
+            play_sound(['hit', 'pl_fallpain3'])
+        else:
+            play_sound(['hit', 'pl_pain2'])
     return armor, health
 
 def calculate_energy(armor, health, hazard):
@@ -139,12 +146,12 @@ while True:
             hazard_turn_counter += random.randint(1, 5)  # Increment the hazard counter
             thud = random.randint(1, 50)  # This randomises damage value for each hit
             armor, health = physical_hit(armor, health, thud)
-            print(f"---- {'Light' if thud < 25 else 'Heavy'} Thud, for {thud} physical damage")
+            print(f"---- {'LIGHT' if thud < 25 else 'HEAVY'} Thud, -{thud} physical damage")
         case 'hazard':
             hazard = random.randint(1, 40)  # This randomises energy value for each hazard
             energy_type = random.choice(energy_types)
             armor, health = energy_hit(armor, health, hazard)
-            print(f"---- {energy_type.title()} hazard, for {hazard} energy damage")
+            print(f"---- {energy_type.title()} hazard, -{hazard} energy damage")
         case 'heal':
             health = apply_restoration(health, 25, 100)
             print("---- Health has been restored!")
@@ -167,6 +174,8 @@ while True:
     print("==== Remaining armor: ", armor)
     print("==== Remaining health: ", health)
 
+
+####################################
 
 # Make a list of all the SFX that'll be used for Combat Mode.
 
