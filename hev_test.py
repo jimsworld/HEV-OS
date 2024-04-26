@@ -130,9 +130,39 @@ def apply_restoration(current_value, amount, max_value):
 #---- Hit Sounds
 def hit_sound(thud):
     if thud >= 25:
-        play_sound(['hit', 'pl_fallpain3'])
+        major_followup_sound = {
+            ('hit', 'pl_fallpain3'): ['medical', 'detected', 'physical', 'boopmid_old_major_fracture'],
+            ('hit', 'hc_headbite'): ['medical', 'detected', 'physical', 'boopmid_old_major_lacerations'],
+            ('hit', 'claw_strike1'): ['medical', 'detected', 'physical', 'boopmid_old_major_lacerations'],
+            ('hit', 'claw_strike2'): ['medical', 'detected', 'physical', 'boopmid_old_major_lacerations']
+        }
+
+        heavy_hits = list(major_followup_sound.keys())  # Get the keys (heavy hit sounds) from the dictionary
+        selected_heavy_hit = random.choice(heavy_hits)  # Chosen at random
+        play_sound(selected_heavy_hit)
+
+        chance_to_play = 0.4  # 40% chance
+        if random.random() < chance_to_play:
+            major_fracture_lacerations = major_followup_sound[selected_heavy_hit]  # Lookup the corresponding sound
+            play_sound(major_fracture_lacerations)
+
     else:
-        play_sound(['hit', 'pl_pain2'])
+        minor_followup_sound = {
+            ('hit', 'pl_pain2'): ['medical', 'detected', 'physical', 'boopmid_old_minor_fracture'],
+            ('hit', 'pl_pain6'): ['medical', 'detected', 'physical', 'boopmid_old_minor_lacerations'],
+            ('hit', 'hc_attack1'): ['medical', 'detected', 'physical', 'boopmid_old_minor_lacerations'],
+            ('hit', 'claw_strike3'): ['medical', 'detected', 'physical', 'boopmid_old_minor_lacerations']
+        }
+
+        light_hits = list(minor_followup_sound.keys())
+        selected_light_hit = random.choice(light_hits)
+        play_sound(selected_light_hit)
+
+        chance_to_play = 0.4
+        if random.random() < chance_to_play:
+            minor_fracture_lacerations = minor_followup_sound[selected_light_hit]
+            play_sound(minor_fracture_lacerations)
+
 
 #---- HEV Compromised Complete
 armor_compromised_played = False
@@ -205,7 +235,6 @@ while True:
         armor_compromised_played = True
     elif armor > 0:
         armor_compromised_played = False
-
 
     #Armor and Health Readouts
     print("==== Remaining armor: ", armor)
