@@ -141,7 +141,7 @@ def hit_sound(thud):
         selected_heavy_hit = random.choice(heavy_hits)  # Chosen at random
         play_sound(selected_heavy_hit)
 
-        chance_to_play = 0.4  # 40% chance
+        chance_to_play = 1.0  # 40% chance
         if random.random() < chance_to_play:
             major_fracture_lacerations = major_followup_sound[selected_heavy_hit]  # Lookup the corresponding sound
             play_sound(major_fracture_lacerations)
@@ -158,7 +158,7 @@ def hit_sound(thud):
         selected_light_hit = random.choice(light_hits)
         play_sound(selected_light_hit)
 
-        chance_to_play = 0.4
+        chance_to_play = 1.0
         if random.random() < chance_to_play:
             minor_fracture_lacerations = minor_followup_sound[selected_light_hit]
             play_sound(minor_fracture_lacerations)
@@ -166,10 +166,15 @@ def hit_sound(thud):
 
 #---- HEV Compromised Complete
 armor_compromised_played = False
+
 def armor_compromised(armor):
-    chance_to_play = 0.5  # 50% chance
-    if armor <= 0 and random.random() < chance_to_play:
+    global armor_compromised_played
+    chance_to_play = 1.0  # 50% chance
+    if armor <= 0 and random.random() < chance_to_play and not armor_compromised_played:
+        while pygame.mixer.get_busy():
+            pygame.time.wait(100) # Wait for 100 milliseconds.
         play_sound(['armor', 'armor_compromised_complete'])
+        armor_compromised_played = True
 
 ####################################
 
@@ -228,17 +233,15 @@ while True:
         print(f"---- {energy_type.title()} hazard, for {hazard} energy damage")
         hazard_turn_counter = 0
 
-    #-Sound Playback-
-    #-HEV Compromised Complete-
-    if not armor_compromised_played:
-        armor_compromised(armor)
-        armor_compromised_played = True
-    elif armor > 0:
-        armor_compromised_played = False
-
     #Armor and Health Readouts
     print("==== Remaining armor: ", armor)
     print("==== Remaining health: ", health)
+
+    #-Sound Playback-
+    #-HEV Compromised Complete-
+    armor_compromised(armor)
+    if armor > 0:
+        armor_compromised_played = False
 
 
 ####################################
@@ -252,3 +255,17 @@ while True:
 # "Timed Alerts - For Energy Damage": You could implement functionality for the energy damage inflicted at fixed time intervals.
 # Focus on one of these areas at a time, preferably one that has dependencies on others.
 # Note this whole program will need to be written in Arduino
+
+# Need a Sound Manager that allows me to specify what sounds can play immediately and at the same time.
+# And also it should be able to queue up sounds that can play after the current sound.
+
+# Redo hit_sounds function to work inline with new Sound Manager.
+# It needs to perform the same way it does currently,
+# with a 40% chance of playing a follow-up sound after a heavy or light hit.
+
+# Redo armor_compromised function to work inline with new Sound Manager.
+# It needs to be queued up to play after the current sound.
+
+# Same principle applies to hazard sounds, whenever a hazard is triggered, it should be queued up to play after the current sound.
+
+# If either armor_compromised sound or hazard sound is playing, NO sound should be able to play until it's finished.
