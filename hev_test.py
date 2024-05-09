@@ -1,4 +1,4 @@
-### version 5.8 ###
+### version 5.9 ###
 
 import random
 import math
@@ -15,9 +15,9 @@ hazard_turn_counter = 0
 show_instructions = True
 
 
-####################################
+########################################################################
 
-############ Loads HEVcommon ############
+############ Loads Sounds ############
 
 def load_sounds(directory):
     sounds = {}
@@ -40,30 +40,60 @@ def load_sounds(directory):
     return sounds
 
 
-all_sounds = load_sounds('HEVcommon')
+hev_common = load_sounds('HEVcommon')
 # Example usage:
-# all_sounds['subfolder']['another_subfolder']['sound_key'].play()
+# hev_common['subfolder']['another_subfolder']['sound_key'].play()
 
 
-####################################
+########################################################################
 
-############ Plays HEVcommon ############
+############ Sound Manager ############
 
-def play_sound(sound_path):
-    try:
-        # Start with the base dictionary.
-        current_dict = all_sounds
-        # Iterate through the parts of the path to navigate the nested dictionaries.
-        for key in sound_path:
-            current_dict = current_dict[key]
-        # Play the sound at the end of the path.
-        current_dict.play()
-    except KeyError:
-        # Handle the case where any part of the path is incorrect.
-        print(f"Warning: The sound at path '{sound_path}' does not exist.")
+class SoundManager:
+    def __init__(self):
+        self.sound_queue = []
+        self.hev_common = load_sounds('HEVcommon')
+    
+    def add_to_queue(self, sound_path):
+        self.sound_queue.append(sound_path)
+    
+    def play_next_in_queue(self):
+        if not pygame.mixer.get_busy():
+            if self.sound_queue:  # Changed from self.queue to self.sound_queue
+                next_sound = self.sound_queue.pop(0)
+                self.play_sound(next_sound)
+    
+    def play_sound(self, sound_path):
+        try:
+            # Start with the base dictionary.
+            current_dict = self.hev_common
+            # Iterate through the parts of the path to navigate the nested dictionaries.
+            for key in sound_path:
+                current_dict = current_dict[key]
+            # Play the sound at the end of the path.
+            current_dict.play()
+        except KeyError:
+            # Handle the case where any part of the path is incorrect.
+            print(f"Warning: The sound at path '{sound_path}' does not exist.")
+        finally:
+            # Start a new thread to play the next sound in the queue???
+            self.play_next_in_queue()
+    
+    def play_sound_immediately(self, sound_path):
+        pygame.mixer.stop()
+        self.play_sound(sound_path)
+    
+    def play_sound_simultaneously(self, sound_path):
+        try:
+            sound = self.hev_common
+            for key in sound_path:
+                sound = sound[key]
+            sound.play()  # This line may need to be modified depending on your sound library
+        except KeyError:
+            print(f"Warning: Sound not found for path {sound_path}.")
 
 
-####################################
+########################################################################
 
 ############ Damage Calculations ############
 
@@ -87,7 +117,7 @@ def calculate_energy(armor, health, hazard):
     return armor, health
 
 
-####################################
+########################################################################
 
 ############ Enforce Non-Negative Values ############
 
@@ -97,7 +127,7 @@ def enforce_non_negative(armor, health):
     return armor, health
 
 
-####################################
+########################################################################
 
 ############ Damage Application and Healing ############
 
@@ -123,9 +153,11 @@ def apply_restoration(current_value, amount, max_value):
     return updated_value
 
 
-####################################
+########################################################################
 
 ############ Sound Engine ############
+
+sound_manager = SoundManager()
 
 #---- Hit Sounds
 def hit_sound(thud):
@@ -139,12 +171,12 @@ def hit_sound(thud):
 
         heavy_hits = list(major_followup_sound.keys())  # Get the keys (heavy hit sounds) from the dictionary
         selected_heavy_hit = random.choice(heavy_hits)  # Chosen at random
-        play_sound(selected_heavy_hit)
+        sound_manager.play_sound_simultaneously(selected_heavy_hit)
 
         chance_to_play = 1.0  # 40% chance
         if random.random() < chance_to_play:
             major_fracture_lacerations = major_followup_sound[selected_heavy_hit]  # Lookup the corresponding sound
-            play_sound(major_fracture_lacerations)
+            sound_manager.play_sound_simultaneously(major_fracture_lacerations)
 
     else:
         minor_followup_sound = {
@@ -156,29 +188,28 @@ def hit_sound(thud):
 
         light_hits = list(minor_followup_sound.keys())
         selected_light_hit = random.choice(light_hits)
-        play_sound(selected_light_hit)
+        sound_manager.play_sound_simultaneously(selected_light_hit)
 
-        chance_to_play = 1.0
+        chance_to_play = 1.0  # 40% chance
         if random.random() < chance_to_play:
             minor_fracture_lacerations = minor_followup_sound[selected_light_hit]
-            play_sound(minor_fracture_lacerations)
+            sound_manager.play_sound_simultaneously(minor_fracture_lacerations)
 
 
-#---- HEV Compromised Complete
-armor_compromised_played = False
+#---- HEV Compromised
+armor_was_compromised = False
 
 def armor_compromised(armor):
-    global armor_compromised_played
     chance_to_play = 1.0  # 50% chance
-    if armor <= 0 and random.random() < chance_to_play and not armor_compromised_played:
+    if armor <= 0 and random.random() < chance_to_play:
         while pygame.mixer.get_busy():
             pygame.time.wait(100) # Wait for 100 milliseconds.
-        play_sound(['armor', 'armor_compromised_complete'])
-        armor_compromised_played = True
+        sound_manager.add_to_queue(['armor', 'armor_compromised_complete'])
+        sound_manager.play_next_in_queue()
 
-####################################
+########################################################################
 
-############ Command Input and Console Output ############
+############ Main Loop ############
 
 while True:
 
@@ -192,35 +223,66 @@ while True:
             "\n'quit':    exits.")
         show_instructions = False  # Stops repetitive instructions
 
+    just_had_hit = False  # Flag to prevent armor_compromised from being called twice after a hit command
+    just_had_hazard = False  # Flag to prevent armor_compromised from being called twice after a hazard command
+
     #User Input
     user_input = input("\nEnter command: ")
     match user_input:
 
+        #-----
+
         case 'hit':
+            just_had_hit = True # Set flag to prevent armor_compromised from being called twice
             hazard_turn_counter += random.randint(1, 5)  # Increment the hazard counter
             thud = random.randint(1, 50)  # This randomises damage value for each hit
+            
             if health > 0:  # Adds Hit Sound as long as health is above 0
                 hit_sound(thud)
+            
             armor, health = physical_hit(armor, health, thud)
+
+            if armor <= 0 and not armor_was_compromised:  # Only call armor_compromised if armor is not already compromised
+                armor_compromised(armor)  # Checks if armor is compromised after each hit
+                armor_was_compromised = True  # Set flag to prevent armor_compromised from being called twice
+
             print(f"---- {'LIGHT' if thud < 25 else 'HEAVY'} Thud, -{thud} physical damage")
 
+        #-----
+
         case 'hazard':
+            just_had_hazard = True # Set flag to prevent armor_compromised from being called twice
             hazard = random.randint(1, 40)  # This randomises energy value for each hazard
             energy_type = random.choice(energy_types)
+
             armor, health = energy_hit(armor, health, hazard)
+
+            if armor <= 0 and not armor_was_compromised:  # Only call armor_compromised if armor is not already compromised
+                armor_compromised(armor)  # Checks if armor is compromised after each hazard
+                armor_was_compromised = True  # Set flag to prevent armor_compromised from being called twice
+            
             print(f"---- {energy_type.title()} hazard, -{hazard} energy damage")
+
+        #-----
 
         case 'heal':
             health = apply_restoration(health, 25, 100)
             print("---- Health has been restored!")
 
+        #-----
+
         case 'repair':
             armor = apply_restoration(armor, 25, 100)
+            armor_was_compromised = False  # Reset the flag
             print("---- Armor has been repaired!")
+
+        #-----
 
         case 'quit':
             print("HEV Suit shutting down.")
             break
+
+        #-----
 
         case _:
             print("Unknown command. Please enter 'hit', 'heal', 'repair' or 'quit'.")
@@ -230,21 +292,23 @@ while True:
         hazard = random.randint(1, 40)  # This randomises energy value for each hazard
         energy_type = random.choice(energy_types)
         armor, health = energy_hit(armor, health, hazard)
+
+        if armor <= 0 and not armor_was_compromised:  # Only call armor_compromised if armor is not already compromised
+            armor_compromised(armor)
+            armor_was_compromised = True  # Set flag to prevent armor_compromised from being called twice
+        
         print(f"---- {energy_type.title()} hazard, for {hazard} energy damage")
+
         hazard_turn_counter = 0
+        just_had_hit = False  # Reset the flag
+        just_had_hazard = False  # Reset the flag
 
     #Armor and Health Readouts
     print("==== Remaining armor: ", armor)
     print("==== Remaining health: ", health)
 
-    #-Sound Playback-
-    #-HEV Compromised Complete-
-    armor_compromised(armor)
-    if armor > 0:
-        armor_compromised_played = False
 
-
-####################################
+########################################################################
 
 # Make a list of all the SFX that'll be used for Combat Mode.
 #(Probably unecessary now since there is a function that dynamically creates a dictionary related to the HEVcommon directory.)
@@ -258,6 +322,9 @@ while True:
 
 # Need a Sound Manager that allows me to specify what sounds can play immediately and at the same time.
 # And also it should be able to queue up sounds that can play after the current sound.
+## The Sound Manager's queue system should be set up so that it can release multiple sounds in a row
+## after the current sound has finished playing from play_sound_immediately.
+# It also needs to respect the current system of loading sounds, withn the load_sound function.
 
 # Redo hit_sounds function to work inline with new Sound Manager.
 # It needs to perform the same way it does currently,
@@ -268,4 +335,4 @@ while True:
 
 # Same principle applies to hazard sounds, whenever a hazard is triggered, it should be queued up to play after the current sound.
 
-# If either armor_compromised sound or hazard sound is playing, NO sound should be able to play until it's finished.
+# If either armor_compromised sound or hazard sound is playing, NO sound should be able to play until they are finished.
