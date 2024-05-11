@@ -1,4 +1,4 @@
-### version 5.9 ###
+### version 5.91 ###
 
 import random
 import math
@@ -52,43 +52,45 @@ hev_common = load_sounds('HEVcommon')
 class SoundManager:
     def __init__(self):
         self.sound_queue = []
+        self.channels = {
+            'hit': pygame.mixer.Channel(0),
+            'follow_up': pygame.mixer.Channel(1),
+            'armor_alerts': pygame.mixer.Channel(2),
+            'hazard_alerts': pygame.mixer.Channel(3),
+            'health_threshold_alerts': pygame.mixer.Channel(4),
+        }
         self.hev_common = load_sounds('HEVcommon')
     
-    def add_to_queue(self, sound_path):
-        self.sound_queue.append(sound_path)
+    def add_to_queue(self, sound_path, channel_name='armor_alerts'):
+        self.sound_queue.append((sound_path, channel_name))
     
     def play_next_in_queue(self):
         if not pygame.mixer.get_busy():
-            if self.sound_queue:  # Changed from self.queue to self.sound_queue
-                next_sound = self.sound_queue.pop(0)
-                self.play_sound(next_sound)
+            if self.sound_queue:
+                sound_path, channel_name = self.sound_queue.pop(0)
+                self.play_sound(sound_path, channel_name)
     
-    def play_sound(self, sound_path):
+    def play_sound(self, sound_path, channel_name='hit'):
         try:
-            # Start with the base dictionary.
-            current_dict = self.hev_common
-            # Iterate through the parts of the path to navigate the nested dictionaries.
-            for key in sound_path:
+            current_dict = self.hev_common  # Start with the base dictionary.
+            for key in sound_path:  # Iterate through the parts of the path to navigate the nested dictionaries.
                 current_dict = current_dict[key]
-            # Play the sound at the end of the path.
-            current_dict.play()
-        except KeyError:
-            # Handle the case where any part of the path is incorrect.
+            self.channels[channel_name].play(current_dict)  # Play the sound at the final key.
+        except KeyError:  # If the sound path is invalid, print a warning.
             print(f"Warning: The sound at path '{sound_path}' does not exist.")
         finally:
-            # Start a new thread to play the next sound in the queue???
             self.play_next_in_queue()
     
-    def play_sound_immediately(self, sound_path):
+    def play_sound_immediately(self, sound_path, channel_name='hit'):
         pygame.mixer.stop()
-        self.play_sound(sound_path)
+        self.play_sound(sound_path, channel_name)
     
-    def play_sound_simultaneously(self, sound_path):
+    def play_sound_simultaneously(self, sound_path, channel_name='hit'):
         try:
             sound = self.hev_common
             for key in sound_path:
                 sound = sound[key]
-            sound.play()  # This line may need to be modified depending on your sound library
+            self.channels[channel_name].play(sound)
         except KeyError:
             print(f"Warning: Sound not found for path {sound_path}.")
 
@@ -171,12 +173,12 @@ def hit_sound(thud):
 
         heavy_hits = list(major_followup_sound.keys())  # Get the keys (heavy hit sounds) from the dictionary
         selected_heavy_hit = random.choice(heavy_hits)  # Chosen at random
-        sound_manager.play_sound_simultaneously(selected_heavy_hit)
+        sound_manager.play_sound_simultaneously(selected_heavy_hit, 'hit')
 
         chance_to_play = 1.0  # 40% chance
         if random.random() < chance_to_play:
             major_fracture_lacerations = major_followup_sound[selected_heavy_hit]  # Lookup the corresponding sound
-            sound_manager.play_sound_simultaneously(major_fracture_lacerations)
+            sound_manager.play_sound_simultaneously(major_fracture_lacerations, 'follow_up')
 
     else:
         minor_followup_sound = {
@@ -188,12 +190,12 @@ def hit_sound(thud):
 
         light_hits = list(minor_followup_sound.keys())
         selected_light_hit = random.choice(light_hits)
-        sound_manager.play_sound_simultaneously(selected_light_hit)
+        sound_manager.play_sound_simultaneously(selected_light_hit, 'hit')
 
         chance_to_play = 1.0  # 40% chance
         if random.random() < chance_to_play:
             minor_fracture_lacerations = minor_followup_sound[selected_light_hit]
-            sound_manager.play_sound_simultaneously(minor_fracture_lacerations)
+            sound_manager.play_sound_simultaneously(minor_fracture_lacerations, 'follow_up')
 
 
 #---- HEV Compromised
@@ -204,7 +206,7 @@ def armor_compromised(armor):
     if armor <= 0 and random.random() < chance_to_play:
         while pygame.mixer.get_busy():
             pygame.time.wait(100) # Wait for 100 milliseconds.
-        sound_manager.add_to_queue(['armor', 'armor_compromised_complete'])
+        sound_manager.add_to_queue(['armor', 'armor_compromised_complete'], 'armor_alerts')
         sound_manager.play_next_in_queue()
 
 ########################################################################
@@ -251,15 +253,15 @@ while True:
         #-----
 
         case 'hazard':
-            just_had_hazard = True # Set flag to prevent armor_compromised from being called twice
-            hazard = random.randint(1, 40)  # This randomises energy value for each hazard
+            just_had_hazard = True
+            hazard = random.randint(1, 40)
             energy_type = random.choice(energy_types)
 
             armor, health = energy_hit(armor, health, hazard)
 
-            if armor <= 0 and not armor_was_compromised:  # Only call armor_compromised if armor is not already compromised
-                armor_compromised(armor)  # Checks if armor is compromised after each hazard
-                armor_was_compromised = True  # Set flag to prevent armor_compromised from being called twice
+            if armor <= 0 and not armor_was_compromised:
+                armor_compromised(armor)
+                armor_was_compromised = True 
             
             print(f"---- {energy_type.title()} hazard, -{hazard} energy damage")
 
@@ -273,7 +275,7 @@ while True:
 
         case 'repair':
             armor = apply_restoration(armor, 25, 100)
-            armor_was_compromised = False  # Reset the flag
+            armor_was_compromised = False  # Reset the flag to allow armor_compromised to be called again.
             print("---- Armor has been repaired!")
 
         #-----
@@ -293,9 +295,9 @@ while True:
         energy_type = random.choice(energy_types)
         armor, health = energy_hit(armor, health, hazard)
 
-        if armor <= 0 and not armor_was_compromised:  # Only call armor_compromised if armor is not already compromised
+        if armor <= 0 and not armor_was_compromised:
             armor_compromised(armor)
-            armor_was_compromised = True  # Set flag to prevent armor_compromised from being called twice
+            armor_was_compromised = True
         
         print(f"---- {energy_type.title()} hazard, for {hazard} energy damage")
 
