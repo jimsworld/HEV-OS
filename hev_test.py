@@ -12,6 +12,7 @@ energy_types = ['heat', 'shock', 'bio', 'chemical', 'radiation']
 
 hazard_turn = 15
 hazard_turn_counter = 0
+
 show_instructions = True
 
 
@@ -21,24 +22,20 @@ show_instructions = True
 
 def load_sounds(directory):
     sounds = {}
-    for root, dirs, files in os.walk(directory):
-        # Path from root to current directory
+    for root, dirs, files in os.walk(directory):  # Path from root to current directory
         path_parts = root.split(os.sep)
         
-        # Initialize a temporary dictionary based on path_parts
-        temp_dict = sounds
+        temp_dict = sounds  # Initialize a temporary dictionary based on path_parts
         for part in path_parts[1:]:  # Skip the first part, as it's the main directory
             temp_dict = temp_dict.setdefault(part, {})
-        
-        # Load each .wav file in the current directory
-        for file in files:
-            if file.endswith('.wav'):
-                # Form the key from the file name without its extension
+
+        for file in files:  # Load each .wav file in the current directory
+            if file.endswith('.wav'):  # Form the key from the file name without its extension
                 key = file[:-4]
                 # Load the sound and assign it to the correct place in the nested dictionary
-                temp_dict[key] = pygame.mixer.Sound(os.path.join(root, file))
+                sound_path = os.path.join(root, file)
+                temp_dict[key] = pygame.mixer.Sound(sound_path)
     return sounds
-
 
 hev_common = load_sounds('HEVcommon')
 # Example usage:
@@ -54,20 +51,29 @@ class SoundManager:
         self.sound_queue = []
         self.channels = {
             'hit': pygame.mixer.Channel(0),
-            'follow_up': pygame.mixer.Channel(1),
-            'armor_alerts': pygame.mixer.Channel(2),
-            'hazard_alerts': pygame.mixer.Channel(3),
+            'hit_detected': pygame.mixer.Channel(1),
+            'hazard': pygame.mixer.Channel(2),
+            'armor_alerts': pygame.mixer.Channel(3),
             'health_threshold_alerts': pygame.mixer.Channel(4),
+            'medical_administer': pygame.mixer.Channel(5),
+            'hazard_administer': pygame.mixer.Channel(6),
         }
         self.hev_common = load_sounds('HEVcommon')
+        self.disable_input_during_sound = False  # Enable/disable input while sound is playing
+
+    def is_sound_playing(self):
+        if self.disable_input_during_sound and pygame.mixer.get_busy():
+            return True
+        return False
     
     def add_to_queue(self, sound_path, channel_name='armor_alerts'):
         self.sound_queue.append((sound_path, channel_name))
+        self.play_next_in_queue()
     
     def play_next_in_queue(self):
-        if not pygame.mixer.get_busy():
-            if self.sound_queue:
-                sound_path, channel_name = self.sound_queue.pop(0)
+        if self.sound_queue:
+            sound_path, channel_name = self.sound_queue.pop(0)
+            if not self.channels[channel_name].get_busy():
                 self.play_sound(sound_path, channel_name)
     
     def play_sound(self, sound_path, channel_name='hit'):
@@ -178,7 +184,14 @@ def hit_sound(thud):
         chance_to_play = 1.0  # 40% chance
         if random.random() < chance_to_play:
             major_fracture_lacerations = major_followup_sound[selected_heavy_hit]  # Lookup the corresponding sound
-            sound_manager.play_sound_simultaneously(major_fracture_lacerations, 'follow_up')
+            sound_manager.play_sound_simultaneously(major_fracture_lacerations, 'hit_detected')
+
+            morphine_chance = 1.0  # 30% chance
+            if random.random() < morphine_chance:
+                while pygame.mixer.get_busy():
+                    pygame.time.wait(100)
+                sound_manager.add_to_queue(['medical', 'administered', 'booplow_morphine_shot'], 'medical_administer')
+                sound_manager.play_next_in_queue()
 
     else:
         minor_followup_sound = {
@@ -195,7 +208,7 @@ def hit_sound(thud):
         chance_to_play = 1.0  # 40% chance
         if random.random() < chance_to_play:
             minor_fracture_lacerations = minor_followup_sound[selected_light_hit]
-            sound_manager.play_sound_simultaneously(minor_fracture_lacerations, 'follow_up')
+            sound_manager.play_sound_simultaneously(minor_fracture_lacerations, 'hit_detected')
 
 
 #---- HEV Compromised
@@ -209,11 +222,29 @@ def armor_compromised(armor):
         sound_manager.add_to_queue(['armor', 'armor_compromised_complete'], 'armor_alerts')
         sound_manager.play_next_in_queue()
 
+
+# #---- Health Threshold Alerts
+# def health_threshold_alerts(health):
+#     chance_to_play = 1.0  # 50% chance
+#     if health <= 6 and random.random() < chance_to_play:
+        
+        
+
+# 	# if:
+# 	# 	health <= 50 - play seek_medic.wav after "medical\detected\physical" voiceline.
+# 	# elif:
+# 	# 	health <= 30 - play health_critical.wav after "medical\detected\physical" voiceline.
+# 	# elif:
+# 	# 	health <= 6 - play near_death.wav after "medical\detected\physical" voiceline.
+
 ########################################################################
 
 ############ Main Loop ############
 
 while True:
+
+    if sound_manager.is_sound_playing():
+        continue
 
     #Instructions
     if show_instructions:
@@ -236,7 +267,7 @@ while True:
 
         case 'hit':
             just_had_hit = True # Set flag to prevent armor_compromised from being called twice
-            hazard_turn_counter += random.randint(1, 5)  # Increment the hazard counter
+            ## Curently disabled ### hazard_turn_counter += random.randint(1, 5)  # Increment the hazard counter
             thud = random.randint(1, 50)  # This randomises damage value for each hit
             
             if health > 0:  # Adds Hit Sound as long as health is above 0
