@@ -1,4 +1,4 @@
-### version 5.91 ###
+### version 5.92 ###
 
 import random
 import math
@@ -181,17 +181,10 @@ def hit_sound(thud):
         selected_heavy_hit = random.choice(heavy_hits)  # Chosen at random
         sound_manager.play_sound_simultaneously(selected_heavy_hit, 'hit')
 
-        chance_to_play = 1.0  # 40% chance
-        if random.random() < chance_to_play:
+        major_detected_chance = 1.0  # 40% chance
+        if random.random() < major_detected_chance:
             major_fracture_lacerations = major_followup_sound[selected_heavy_hit]  # Lookup the corresponding sound
             sound_manager.play_sound_simultaneously(major_fracture_lacerations, 'hit_detected')
-
-            morphine_chance = 1.0  # 30% chance
-            if random.random() < morphine_chance:
-                while pygame.mixer.get_busy():
-                    pygame.time.wait(100)
-                sound_manager.add_to_queue(['medical', 'administered', 'booplow_morphine_shot'], 'medical_administer')
-                sound_manager.play_next_in_queue()
 
     else:
         minor_followup_sound = {
@@ -205,8 +198,8 @@ def hit_sound(thud):
         selected_light_hit = random.choice(light_hits)
         sound_manager.play_sound_simultaneously(selected_light_hit, 'hit')
 
-        chance_to_play = 1.0  # 40% chance
-        if random.random() < chance_to_play:
+        minor_detected_chance = 1.0  # 40% chance
+        if random.random() < minor_detected_chance:
             minor_fracture_lacerations = minor_followup_sound[selected_light_hit]
             sound_manager.play_sound_simultaneously(minor_fracture_lacerations, 'hit_detected')
 
@@ -215,17 +208,27 @@ def hit_sound(thud):
 armor_was_compromised = False
 
 def armor_compromised(armor):
-    chance_to_play = 1.0  # 50% chance
-    if armor <= 0 and random.random() < chance_to_play:
+    compromised_chance = 1.0  # 50% chance
+    if random.random() < compromised_chance:
         while pygame.mixer.get_busy():
             pygame.time.wait(100) # Wait for 100 milliseconds.
         sound_manager.add_to_queue(['armor', 'armor_compromised_complete'], 'armor_alerts')
         sound_manager.play_next_in_queue()
 
 
+#---- Morphine Shot
+def morphine_shot(thud):
+    morphine_chance = 1.0  # 30% chance
+    if random.random() < morphine_chance:
+        while pygame.mixer.get_busy():
+            pygame.time.wait(100)
+        sound_manager.add_to_queue(['medical', 'administered', 'booplow_morphine_shot'], 'medical_administer')
+        sound_manager.play_next_in_queue()
+
+
 # #---- Health Threshold Alerts
 # def health_threshold_alerts(health):
-#     chance_to_play = 1.0  # 50% chance
+#     chance_to_play = 1.0  # 100% chance
 #     if health <= 6 and random.random() < chance_to_play:
         
         
@@ -256,8 +259,8 @@ while True:
             "\n'quit':    exits.")
         show_instructions = False  # Stops repetitive instructions
 
-    just_had_hit = False  # Flag to prevent armor_compromised from being called twice after a hit command
-    just_had_hazard = False  # Flag to prevent armor_compromised from being called twice after a hazard command
+    # just_had_hit = False  # Flag to prevent armor_compromised playing twice after hit command when armor is 0
+    # just_had_hazard = False  # Flag to prevent armor_compromised playing twice after hazard command when armor is 0
 
     #User Input
     user_input = input("\nEnter command: ")
@@ -266,16 +269,19 @@ while True:
         #-----
 
         case 'hit':
-            just_had_hit = True # Set flag to prevent armor_compromised from being called twice
-            ## Curently disabled ### hazard_turn_counter += random.randint(1, 5)  # Increment the hazard counter
+            # just_had_hit = True
+            # hazard_turn_counter += random.randint(1, 5)  # Increment the hazard counter
             thud = random.randint(1, 50)  # This randomises damage value for each hit
             
-            if health > 0:  # Adds Hit Sound as long as health is above 0
+            if health > 0:  #  Calls hit_sound as long as health is above 0
                 hit_sound(thud)
+
+            if thud >= 25 and health > 0:  # Only call morphine_shot if thud is 25 or higher
+                morphine_shot(thud)
             
             armor, health = physical_hit(armor, health, thud)
 
-            if armor <= 0 and not armor_was_compromised:  # Only call armor_compromised if armor is not already compromised
+            if armor <= 0 and health > 0 and not armor_was_compromised:  # Only call armor_compromised if armor is not already compromised
                 armor_compromised(armor)  # Checks if armor is compromised after each hit
                 armor_was_compromised = True  # Set flag to prevent armor_compromised from being called twice
 
@@ -284,13 +290,13 @@ while True:
         #-----
 
         case 'hazard':
-            just_had_hazard = True
+            # just_had_hazard = True
             hazard = random.randint(1, 40)
             energy_type = random.choice(energy_types)
 
             armor, health = energy_hit(armor, health, hazard)
 
-            if armor <= 0 and not armor_was_compromised:
+            if armor <= 0 and health > 0 and not armor_was_compromised:
                 armor_compromised(armor)
                 armor_was_compromised = True 
             
@@ -320,21 +326,21 @@ while True:
         case _:
             print("Unknown command. Please enter 'hit', 'heal', 'repair' or 'quit'.")
 
-    #Random Hazard
-    if hazard_turn_counter >= hazard_turn:  # Triggers a random hazard when threshold is met
-        hazard = random.randint(1, 40)  # This randomises energy value for each hazard
-        energy_type = random.choice(energy_types)
-        armor, health = energy_hit(armor, health, hazard)
+    # #Random Hazard
+    # if hazard_turn_counter >= hazard_turn:  # Triggers a random hazard when threshold is met
+    #     hazard = random.randint(1, 40)  # This randomises energy value for each hazard
+    #     energy_type = random.choice(energy_types)
+    #     armor, health = energy_hit(armor, health, hazard)
 
-        if armor <= 0 and not armor_was_compromised:
-            armor_compromised(armor)
-            armor_was_compromised = True
+    #     if armor <= 0 and health > 0 and not armor_was_compromised:
+    #         armor_compromised(armor)
+    #         armor_was_compromised = True
         
-        print(f"---- {energy_type.title()} hazard, for {hazard} energy damage")
+    #     print(f"---- {energy_type.title()} hazard, for {hazard} energy damage")
 
-        hazard_turn_counter = 0
-        just_had_hit = False  # Reset the flag
-        just_had_hazard = False  # Reset the flag
+    #     hazard_turn_counter = 0
+    #     just_had_hit = False  # Reset the flag
+    #     just_had_hazard = False  # Reset the flag
 
     #Armor and Health Readouts
     print("==== Remaining armor: ", armor)
