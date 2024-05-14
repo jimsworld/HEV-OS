@@ -1,4 +1,4 @@
-### version 5.92 ###
+### version 5.93 ###
 
 import random
 import math
@@ -167,7 +167,7 @@ def apply_restoration(current_value, amount, max_value):
 
 sound_manager = SoundManager()
 
-#---- Hit Sounds
+#---- Hit Sounds and Hit Detected Sounds
 def hit_sound(thud):
     if thud >= 25:
         major_followup_sound = {
@@ -204,7 +204,7 @@ def hit_sound(thud):
             sound_manager.play_sound_simultaneously(minor_fracture_lacerations, 'hit_detected')
 
 
-#---- HEV Compromised
+#---- Armor Compromised
 armor_was_compromised = False
 
 def armor_compromised(armor):
@@ -214,6 +214,25 @@ def armor_compromised(armor):
             pygame.time.wait(100) # Wait for 100 milliseconds.
         sound_manager.add_to_queue(['armor', 'armor_compromised_complete'], 'armor_alerts')
         sound_manager.play_next_in_queue()
+
+
+#---- Health Threshold Alerts
+def health_threshold_alerts(health):
+    near_death_chance = 1.0  # 100% chance
+    if health <= 95 and random.random() < near_death_chance:
+        while pygame.mixer.get_busy():
+            pygame.time.wait(100)
+        sound_manager.add_to_queue(['medical', 'health', 'boophigh_near_death'], 'health_threshold_alerts')
+        sound_manager.play_next_in_queue()
+        
+        
+
+# 	# if:
+# 	# 	health <= 50 - play seek_medic.wav after "medical\detected\physical" voiceline.
+# 	# elif:
+# 	# 	health <= 30 - play health_critical.wav after "medical\detected\physical" voiceline.
+# 	# elif:
+# 	# 	health <= 6 - play near_death.wav after "medical\detected\physical" voiceline.
 
 
 #---- Morphine Shot
@@ -226,20 +245,6 @@ def morphine_shot(thud):
         sound_manager.play_next_in_queue()
 
 
-# #---- Health Threshold Alerts
-# def health_threshold_alerts(health):
-#     chance_to_play = 1.0  # 100% chance
-#     if health <= 6 and random.random() < chance_to_play:
-        
-        
-
-# 	# if:
-# 	# 	health <= 50 - play seek_medic.wav after "medical\detected\physical" voiceline.
-# 	# elif:
-# 	# 	health <= 30 - play health_critical.wav after "medical\detected\physical" voiceline.
-# 	# elif:
-# 	# 	health <= 6 - play near_death.wav after "medical\detected\physical" voiceline.
-
 ########################################################################
 
 ############ Main Loop ############
@@ -249,7 +254,7 @@ while True:
     if sound_manager.is_sound_playing():
         continue
 
-    #Instructions
+    #-----Instructions
     if show_instructions:
         print("\nHEV Suit test ready. Available commands:"
             "\n'hit':     physical attack between 1 - 50"
@@ -273,17 +278,21 @@ while True:
             # hazard_turn_counter += random.randint(1, 5)  # Increment the hazard counter
             thud = random.randint(1, 50)  # This randomises damage value for each hit
             
+            armor, health = physical_hit(armor, health, thud)
+
             if health > 0:  #  Calls hit_sound as long as health is above 0
                 hit_sound(thud)
 
-            if thud >= 25 and health > 0:  # Only call morphine_shot if thud is 25 or higher
-                morphine_shot(thud)
-            
-            armor, health = physical_hit(armor, health, thud)
+            if health > 0:  # If health is still above 0 after physical hit
+                if armor <= 0 and not armor_was_compromised:  # Only call armor_compromised if armor is not already compromised
+                    armor_compromised(armor)  # Checks if armor is compromised after each hit
+                    armor_was_compromised = True  # Set flag to prevent armor_compromised from being called twice
 
-            if armor <= 0 and health > 0 and not armor_was_compromised:  # Only call armor_compromised if armor is not already compromised
-                armor_compromised(armor)  # Checks if armor is compromised after each hit
-                armor_was_compromised = True  # Set flag to prevent armor_compromised from being called twice
+                if health > 0:
+                    health_threshold_alerts(health)
+            
+                if thud >= 25:  # Only call morphine_shot if thud is 25 or higher
+                    morphine_shot(thud)
 
             print(f"---- {'LIGHT' if thud < 25 else 'HEAVY'} Thud, -{thud} physical damage")
 
@@ -296,9 +305,10 @@ while True:
 
             armor, health = energy_hit(armor, health, hazard)
 
-            if armor <= 0 and health > 0 and not armor_was_compromised:
-                armor_compromised(armor)
-                armor_was_compromised = True 
+            if health > 0:
+                if armor <= 0 and not armor_was_compromised:
+                    armor_compromised(armor)
+                    armor_was_compromised = True 
             
             print(f"---- {energy_type.title()} hazard, -{hazard} energy damage")
 
@@ -326,13 +336,13 @@ while True:
         case _:
             print("Unknown command. Please enter 'hit', 'heal', 'repair' or 'quit'.")
 
-    # #Random Hazard
+    # #-----Random Hazard
     # if hazard_turn_counter >= hazard_turn:  # Triggers a random hazard when threshold is met
     #     hazard = random.randint(1, 40)  # This randomises energy value for each hazard
     #     energy_type = random.choice(energy_types)
     #     armor, health = energy_hit(armor, health, hazard)
-
-    #     if armor <= 0 and health > 0 and not armor_was_compromised:
+    #     if health > 0:
+    #     if armor <= 0 and not armor_was_compromised:
     #         armor_compromised(armor)
     #         armor_was_compromised = True
         
@@ -342,7 +352,7 @@ while True:
     #     just_had_hit = False  # Reset the flag
     #     just_had_hazard = False  # Reset the flag
 
-    #Armor and Health Readouts
+    #-----Armor and Health Readouts
     print("==== Remaining armor: ", armor)
     print("==== Remaining health: ", health)
 
