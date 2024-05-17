@@ -1,4 +1,4 @@
-### version 5.93 ###
+### version 5.94 ###
 
 import random
 import math
@@ -73,8 +73,9 @@ class SoundManager:
     def play_next_in_queue(self):
         if self.sound_queue:
             sound_path, channel_name = self.sound_queue.pop(0)
-            if not self.channels[channel_name].get_busy():
-                self.play_sound(sound_path, channel_name)
+            while self.channels[channel_name].get_busy():
+                pygame.time.wait(100)
+            self.play_sound(sound_path, channel_name)
     
     def play_sound(self, sound_path, channel_name='hit'):
         try:
@@ -218,13 +219,32 @@ def armor_compromised(armor):
 
 #---- Health Threshold Alerts
 def health_threshold_alerts(health):
+
     near_death_chance = 1.0  # 100% chance
-    if health <= 95 and random.random() < near_death_chance:
+    health_critical_chance = 1.0  # 100% chance
+    seek_medic_chance = 1.0  # 100% chance
+
+    if 1 <= health <= 6 and random.random() < near_death_chance:
         while pygame.mixer.get_busy():
             pygame.time.wait(100)
         sound_manager.add_to_queue(['medical', 'health', 'boophigh_near_death'], 'health_threshold_alerts')
+        if random.random() < seek_medic_chance:
+            sound_manager.add_to_queue(['medical', 'health', 'booplow_seek_medic'], 'health_threshold_alerts')
         sound_manager.play_next_in_queue()
-        
+
+    if 7 <= health <= 30 and random.random() < health_critical_chance:
+        while pygame.mixer.get_busy():
+            pygame.time.wait(100)
+        sound_manager.add_to_queue(['medical', 'health', 'boophigh_health_critical'], 'health_threshold_alerts')
+        if random.random() < seek_medic_chance:
+            sound_manager.add_to_queue(['medical', 'health', 'booplow_seek_medic'], 'health_threshold_alerts')
+        sound_manager.play_next_in_queue()
+
+    if 31 <= health <= 50 and random.random() < seek_medic_chance:
+        while pygame.mixer.get_busy():
+            pygame.time.wait(100)
+        sound_manager.add_to_queue(['medical', 'health', 'booplow_seek_medic'], 'health_threshold_alerts')
+        sound_manager.play_next_in_queue()
         
 
 # 	# if:
