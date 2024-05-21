@@ -1,4 +1,4 @@
-### version 5.94 ###
+### version 5.95 ###
 
 import random
 import math
@@ -100,6 +100,11 @@ class SoundManager:
             self.channels[channel_name].play(sound)
         except KeyError:
             print(f"Warning: Sound not found for path {sound_path}.")
+    
+    def stop_and_play_this(self, sound_path, channel_name):
+        pygame.mixer.stop()  # Stop all sounds
+        self.sound_queue.clear()  # Clear the sound queue
+        self.play_sound(sound_path, channel_name)  # Play the specified sound
 
 
 ########################################################################
@@ -220,9 +225,9 @@ def armor_compromised(armor):
 #---- Health Threshold Alerts
 def health_threshold_alerts(health):
 
-    near_death_chance = 1.0  # 100% chance
-    health_critical_chance = 1.0  # 100% chance
-    seek_medic_chance = 1.0  # 100% chance
+    near_death_chance = 1.0  # 50% chance
+    health_critical_chance = 1.0  # 50% chance
+    seek_medic_chance = 1.0  # 50% chance
 
     if 1 <= health <= 6 and random.random() < near_death_chance:
         while pygame.mixer.get_busy():
@@ -245,14 +250,6 @@ def health_threshold_alerts(health):
             pygame.time.wait(100)
         sound_manager.add_to_queue(['medical', 'health', 'booplow_seek_medic'], 'health_threshold_alerts')
         sound_manager.play_next_in_queue()
-        
-
-# 	# if:
-# 	# 	health <= 50 - play seek_medic.wav after "medical\detected\physical" voiceline.
-# 	# elif:
-# 	# 	health <= 30 - play health_critical.wav after "medical\detected\physical" voiceline.
-# 	# elif:
-# 	# 	health <= 6 - play near_death.wav after "medical\detected\physical" voiceline.
 
 
 #---- Morphine Shot
@@ -264,6 +261,42 @@ def morphine_shot(thud):
         sound_manager.add_to_queue(['medical', 'administered', 'booplow_morphine_shot'], 'medical_administer')
         sound_manager.play_next_in_queue()
 
+
+#---- Death Noise
+is_dead = False  # Flag to prevent death_noise from being called multiple times.
+
+def death_noise(thud):
+    if thud >= 25:
+        major_hit_sound = {
+            ('hit', 'pl_fallpain3'),
+            ('hit', 'hc_headbite'),
+            ('hit', 'claw_strike1'),
+            ('hit', 'claw_strike2')
+        }
+
+        heavy_hits = list(major_hit_sound)  # Get the heavy hit sounds
+        selected_heavy_hit = random.choice(heavy_hits)  # Chosen at random
+
+    else:
+        minor_hit_sound = {
+            ('hit', 'pl_pain2'),
+            ('hit', 'pl_pain6'),
+            ('hit', 'hc_attack1'),
+            ('hit', 'claw_strike3')
+        }
+
+        light_hits = list(minor_hit_sound)
+        selected_light_hit = random.choice(light_hits)
+
+    death_sound = ['misc', 'flatline_main']
+
+    if thud >= 25:
+        sound_manager.stop_and_play_this(selected_heavy_hit, 'hit')
+        sound_manager.stop_and_play_this(death_sound, 'hit_detected')
+    else:
+        sound_manager.stop_and_play_this(selected_light_hit, 'hit')
+        sound_manager.stop_and_play_this(death_sound, 'hit_detected')
+        
 
 ########################################################################
 
@@ -300,6 +333,10 @@ while True:
             
             armor, health = physical_hit(armor, health, thud)
 
+            if health <= 0 and not is_dead:
+                death_noise(thud)
+                is_dead = True
+            
             if health > 0:  #  Calls hit_sound as long as health is above 0
                 hit_sound(thud)
 
@@ -325,6 +362,10 @@ while True:
 
             armor, health = energy_hit(armor, health, hazard)
 
+            if health <= 0 and not is_dead:
+                death_noise(thud)
+                is_dead = True
+
             if health > 0:
                 if armor <= 0 and not armor_was_compromised:
                     armor_compromised(armor)
@@ -336,6 +377,7 @@ while True:
 
         case 'heal':
             health = apply_restoration(health, 25, 100)
+            is_dead = False  # Reset the flag to allow death_noise to be called again.
             print("---- Health has been restored!")
 
         #-----
@@ -379,29 +421,6 @@ while True:
 
 ########################################################################
 
-# Make a list of all the SFX that'll be used for Combat Mode.
-#(Probably unecessary now since there is a function that dynamically creates a dictionary related to the HEVcommon directory.)
-
-# "Boops & Fuzz": Functions could handle playing the correct sound corresponding to the health level.
-# "Suit Advise": Functions could handle the suit advice logic, triggering the appropriate advice based on the current health level.
-# "Suit Aid": Functionality could handle scenarios involving heavy hits.
-# "Timed Alerts - For Energy Damage": You could implement functionality for the energy damage inflicted at fixed time intervals.
-# Focus on one of these areas at a time, preferably one that has dependencies on others.
-# Note this whole program will need to be written in Arduino
-
-# Need a Sound Manager that allows me to specify what sounds can play immediately and at the same time.
-# And also it should be able to queue up sounds that can play after the current sound.
-## The Sound Manager's queue system should be set up so that it can release multiple sounds in a row
-## after the current sound has finished playing from play_sound_immediately.
-# It also needs to respect the current system of loading sounds, withn the load_sound function.
-
-# Redo hit_sounds function to work inline with new Sound Manager.
-# It needs to perform the same way it does currently,
-# with a 40% chance of playing a follow-up sound after a heavy or light hit.
-
-# Redo armor_compromised function to work inline with new Sound Manager.
-# It needs to be queued up to play after the current sound.
-
-# Same principle applies to hazard sounds, whenever a hazard is triggered, it should be queued up to play after the current sound.
-
-# If either armor_compromised sound or hazard sound is playing, NO sound should be able to play until they are finished.
+# Create specific hazard voice lines
+# Create death sound, cancel all other sounds when it plays.
+# Create fuzz thresholds for both fuzz sounds. Should add a new function to handle this, by using a new command called "armor".
