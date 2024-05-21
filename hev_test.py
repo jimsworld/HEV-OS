@@ -1,4 +1,4 @@
-### version 5.95 ###
+### version 5.96 ###
 
 import random
 import math
@@ -8,7 +8,7 @@ pygame.init()
 
 armor = 100
 health = 100
-energy_types = ['heat', 'shock', 'bio', 'chemical', 'radiation']
+energy_types = ['heat', 'shock', 'bio', 'blood toxins', 'chemical', 'radiation']
 
 hazard_turn = 15
 hazard_turn_counter = 0
@@ -101,7 +101,7 @@ class SoundManager:
         except KeyError:
             print(f"Warning: Sound not found for path {sound_path}.")
     
-    def stop_and_play_this(self, sound_path, channel_name):
+    def play_and_clear_queue(self, sound_path, channel_name):
         pygame.mixer.stop()  # Stop all sounds
         self.sound_queue.clear()  # Clear the sound queue
         self.play_sound(sound_path, channel_name)  # Play the specified sound
@@ -210,6 +210,30 @@ def hit_sound(thud):
             sound_manager.play_sound_simultaneously(minor_fracture_lacerations, 'hit_detected')
 
 
+
+#---- Hazard Sounds
+def hazard_sound(energy_types):
+    hazard_sounds = {
+        'heat': ['medical', 'detected', 'energy', 'heat_damage_boophighdouble'],
+        'shock': ['medical', 'detected', 'energy', 'shock_damage_boophighdouble'],
+        'bio': ['medical', 'detected', 'energy', 'biohazard_detected_blipblipblip'],
+        'blood toxins': ['medical', 'detected', 'energy', 'blood_toxins_boopmid_old'],
+        'chemical': ['medical', 'detected', 'energy', 'chemical_detected_blipblipblip'],
+        'radiation': ['medical', 'detected', 'energy', 'radiation_detected_blipblipblip']
+    }
+
+    health_dropping_chance = 0.5  # 50% chance
+    health_dropping_sound = ['medical', 'health', 'boophighdouble_health_dropping2']
+
+    if energy_types in hazard_sounds:
+        sound_manager.play_sound(hazard_sounds[energy_types], 'hazard')
+        if energy_types in ['bio', 'blood toxins', 'chemical', 'radiation']:
+            if random.random() < health_dropping_chance:
+                while pygame.mixer.get_busy():
+                    pygame.time.wait(100)
+                sound_manager.add_to_queue(health_dropping_sound, 'health_threshold_alerts')
+
+
 #---- Armor Compromised
 armor_was_compromised = False
 
@@ -291,11 +315,11 @@ def death_noise(thud):
     death_sound = ['misc', 'flatline_main']
 
     if thud >= 25:
-        sound_manager.stop_and_play_this(selected_heavy_hit, 'hit')
-        sound_manager.stop_and_play_this(death_sound, 'hit_detected')
+        sound_manager.play_and_clear_queue(selected_heavy_hit, 'hit')
+        sound_manager.play_and_clear_queue(death_sound, 'hit_detected')
     else:
-        sound_manager.stop_and_play_this(selected_light_hit, 'hit')
-        sound_manager.stop_and_play_this(death_sound, 'hit_detected')
+        sound_manager.play_and_clear_queue(selected_light_hit, 'hit')
+        sound_manager.play_and_clear_queue(death_sound, 'hit_detected')
         
 
 ########################################################################
@@ -358,18 +382,24 @@ while True:
         case 'hazard':
             # just_had_hazard = True
             hazard = random.randint(1, 40)
-            energy_type = random.choice(energy_types)
 
             armor, health = energy_hit(armor, health, hazard)
 
             if health <= 0 and not is_dead:
-                death_noise(thud)
+                death_noise(hazard)
                 is_dead = True
+            
+            if health > 0:
+                energy_type = random.choice(energy_types)
+                hazard_sound(energy_type)
 
             if health > 0:
                 if armor <= 0 and not armor_was_compromised:
                     armor_compromised(armor)
-                    armor_was_compromised = True 
+                    armor_was_compromised = True
+            
+                if health > 0:
+                    health_threshold_alerts(health)
             
             print(f"---- {energy_type.title()} hazard, -{hazard} energy damage")
 
@@ -421,6 +451,4 @@ while True:
 
 ########################################################################
 
-# Create specific hazard voice lines
-# Create death sound, cancel all other sounds when it plays.
 # Create fuzz thresholds for both fuzz sounds. Should add a new function to handle this, by using a new command called "armor".
