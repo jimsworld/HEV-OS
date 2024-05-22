@@ -1,21 +1,42 @@
-### version 5.96 ###
+### HEV OS v5.97 ###
 
+#---- Imports
 import random
 import math
 import os
 import pygame
 pygame.init()
 
+#---- Global Variables
 armor = 100
 health = 100
 energy_types = ['heat', 'shock', 'bio', 'blood toxins', 'chemical', 'radiation']
 
-hazard_turn = 15
-hazard_turn_counter = 0
-
+#---- Instructions
 show_instructions = True
 
+#---- Additional Voiceline Chances:
+# Hit Detected
+major_detected_chance = 0.4  # 40% chance
+minor_detected_chance = 0.4  # 40% chance
 
+# Hazard Sound Follow Up 
+health_dropping_chance = 0.5  # 50% chance
+
+# Armor Compromised
+compromised_chance = 0.5  # 50% chance
+
+# Health Threshold Alerts
+near_death_chance = 0.9  # 90% chance
+health_critical_chance = 0.65  # 65% chance
+seek_medic_chance = 0.5  # 50% chance
+
+# Morphine Shot
+morphine_chance = 0.3  # 30% chance
+
+#---- Redundant Variables
+# hazard_turn = 15
+# hazard_turn_counter = 0
 ########################################################################
 
 ############ Loads Sounds ############
@@ -183,13 +204,12 @@ def hit_sound(thud):
             ('hit', 'claw_strike2'): ['medical', 'detected', 'physical', 'boopmid_old_major_lacerations']
         }
 
-        heavy_hits = list(major_followup_sound.keys())  # Get the keys (heavy hit sounds) from the dictionary
-        selected_heavy_hit = random.choice(heavy_hits)  # Chosen at random
-        sound_manager.play_sound_simultaneously(selected_heavy_hit, 'hit')
+        major_hits = list(major_followup_sound.keys())  # Get the keys (major hit sounds) from the dictionary
+        selected_major_hit = random.choice(major_hits)  # Chosen at random
+        sound_manager.play_sound_simultaneously(selected_major_hit, 'hit')
 
-        major_detected_chance = 1.0  # 40% chance
         if random.random() < major_detected_chance:
-            major_fracture_lacerations = major_followup_sound[selected_heavy_hit]  # Lookup the corresponding sound
+            major_fracture_lacerations = major_followup_sound[selected_major_hit]  # Lookup the corresponding sound
             sound_manager.play_sound_simultaneously(major_fracture_lacerations, 'hit_detected')
 
     else:
@@ -200,13 +220,12 @@ def hit_sound(thud):
             ('hit', 'claw_strike3'): ['medical', 'detected', 'physical', 'boopmid_old_minor_lacerations']
         }
 
-        light_hits = list(minor_followup_sound.keys())
-        selected_light_hit = random.choice(light_hits)
-        sound_manager.play_sound_simultaneously(selected_light_hit, 'hit')
+        minor_hits = list(minor_followup_sound.keys())
+        selected_minor_hit = random.choice(minor_hits)
+        sound_manager.play_sound_simultaneously(selected_minor_hit, 'hit')
 
-        minor_detected_chance = 1.0  # 40% chance
         if random.random() < minor_detected_chance:
-            minor_fracture_lacerations = minor_followup_sound[selected_light_hit]
+            minor_fracture_lacerations = minor_followup_sound[selected_minor_hit]
             sound_manager.play_sound_simultaneously(minor_fracture_lacerations, 'hit_detected')
 
 
@@ -222,7 +241,6 @@ def hazard_sound(energy_types):
         'radiation': ['medical', 'detected', 'energy', 'radiation_detected_blipblipblip']
     }
 
-    health_dropping_chance = 0.5  # 50% chance
     health_dropping_sound = ['medical', 'health', 'boophighdouble_health_dropping2']
 
     if energy_types in hazard_sounds:
@@ -234,11 +252,20 @@ def hazard_sound(energy_types):
                 sound_manager.add_to_queue(health_dropping_sound, 'health_threshold_alerts')
 
 
+#---- Armor Alarm
+def armor_alarm(thud=None, hazard=None):
+    if thud and thud >= 30:
+        armor_buzz = ['misc', 'buzzdouble']
+        sound_manager.play_sound_simultaneously(armor_buzz, 'armor_alerts')
+    if hazard and hazard >= 30:
+        armor_buzz = ['misc', 'buzzdouble']
+        sound_manager.play_sound_simultaneously(armor_buzz, 'armor_alerts')
+
+
 #---- Armor Compromised
 armor_was_compromised = False
 
 def armor_compromised(armor):
-    compromised_chance = 1.0  # 50% chance
     if random.random() < compromised_chance:
         while pygame.mixer.get_busy():
             pygame.time.wait(100) # Wait for 100 milliseconds.
@@ -248,11 +275,6 @@ def armor_compromised(armor):
 
 #---- Health Threshold Alerts
 def health_threshold_alerts(health):
-
-    near_death_chance = 1.0  # 50% chance
-    health_critical_chance = 1.0  # 50% chance
-    seek_medic_chance = 1.0  # 50% chance
-
     if 1 <= health <= 6 and random.random() < near_death_chance:
         while pygame.mixer.get_busy():
             pygame.time.wait(100)
@@ -278,7 +300,6 @@ def health_threshold_alerts(health):
 
 #---- Morphine Shot
 def morphine_shot(thud):
-    morphine_chance = 1.0  # 30% chance
     if random.random() < morphine_chance:
         while pygame.mixer.get_busy():
             pygame.time.wait(100)
@@ -298,8 +319,8 @@ def death_noise(thud):
             ('hit', 'claw_strike2')
         }
 
-        heavy_hits = list(major_hit_sound)  # Get the heavy hit sounds
-        selected_heavy_hit = random.choice(heavy_hits)  # Chosen at random
+        major_hits = list(major_hit_sound)  # Get the major hit sounds
+        selected_major_hit = random.choice(major_hits)  # Chosen at random
 
     else:
         minor_hit_sound = {
@@ -309,16 +330,16 @@ def death_noise(thud):
             ('hit', 'claw_strike3')
         }
 
-        light_hits = list(minor_hit_sound)
-        selected_light_hit = random.choice(light_hits)
+        minor_hits = list(minor_hit_sound)
+        selected_minor_hit = random.choice(minor_hits)
 
     death_sound = ['misc', 'flatline_main']
 
     if thud >= 25:
-        sound_manager.play_and_clear_queue(selected_heavy_hit, 'hit')
+        sound_manager.play_and_clear_queue(selected_major_hit, 'hit')
         sound_manager.play_and_clear_queue(death_sound, 'hit_detected')
     else:
-        sound_manager.play_and_clear_queue(selected_light_hit, 'hit')
+        sound_manager.play_and_clear_queue(selected_minor_hit, 'hit')
         sound_manager.play_and_clear_queue(death_sound, 'hit_detected')
         
 
@@ -365,6 +386,9 @@ while True:
                 hit_sound(thud)
 
             if health > 0:  # If health is still above 0 after physical hit
+                if armor > 0:
+                    armor_alarm(thud=thud)
+
                 if armor <= 0 and not armor_was_compromised:  # Only call armor_compromised if armor is not already compromised
                     armor_compromised(armor)  # Checks if armor is compromised after each hit
                     armor_was_compromised = True  # Set flag to prevent armor_compromised from being called twice
@@ -375,7 +399,7 @@ while True:
                 if thud >= 25:  # Only call morphine_shot if thud is 25 or higher
                     morphine_shot(thud)
 
-            print(f"---- {'LIGHT' if thud < 25 else 'HEAVY'} Thud, -{thud} physical damage")
+            print(f"---- {'MINOR' if thud < 25 else 'MAJOR'} Thud, -{thud} physical damage")
 
         #-----
 
@@ -394,6 +418,9 @@ while True:
                 hazard_sound(energy_type)
 
             if health > 0:
+                if armor > 0:
+                    armor_alarm(hazard=hazard)
+
                 if armor <= 0 and not armor_was_compromised:
                     armor_compromised(armor)
                     armor_was_compromised = True
@@ -452,3 +479,4 @@ while True:
 ########################################################################
 
 # Create fuzz thresholds for both fuzz sounds. Should add a new function to handle this, by using a new command called "armor".
+# Maybe add morphine_shot functionality to play AFTER a Major Hit Detected sound.
