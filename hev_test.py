@@ -1,4 +1,4 @@
-### HEV OS v5.98 ###
+### HEV OS v5.99 ###
 
 #---- Imports
 import random
@@ -78,6 +78,7 @@ class SoundManager:
             'health_threshold_alerts': pygame.mixer.Channel(4),
             'medical_administer': pygame.mixer.Channel(5),
             'hazard_administer': pygame.mixer.Channel(6),
+            'number_playback': pygame.mixer.Channel(7)
         }
         self.hev_common = load_sounds('HEVcommon')
         self.disable_input_during_sound = False  # Enable/disable input while sound is playing
@@ -260,11 +261,11 @@ def hazard_sound(energy_types):
 
 
 #---- Armor Alarm
-def armor_alarm(armor, thud=None, hazard=None):
-    if armor > 0 and thud and thud >= 30:
+def armor_alarm(health, armor, thud=None, hazard=None):
+    if health and armor > 0 and thud and thud >= 30:
         armor_buzz = ['misc', 'buzzdouble']
         sound_manager.play_sound_simultaneously(armor_buzz, 'armor_alerts')
-    if armor > 0 and hazard and hazard >= 30:
+    if health and armor > 0 and hazard and hazard >= 30:
         armor_buzz = ['misc', 'buzzdouble']
         sound_manager.play_sound_simultaneously(armor_buzz, 'armor_alerts')
 
@@ -340,6 +341,71 @@ def death_noise(thud):
     else:
         sound_manager.play_and_clear_queue(selected_minor_hit, 'hit')
         sound_manager.play_and_clear_queue(death_sound, 'hit_detected')
+
+
+#---- Play Number Sound
+def play_number_sound(number, folder_path):
+    number_to_word = {1: 'one', 2: 'two', 3: 'three', 4: 'four', 5: 'five',
+                    6: 'six', 7: 'seven', 8: 'eight', 9: 'nine', 10: 'ten',
+                    11: 'eleven', 12: 'twelve', 13: 'thirteen', 14: 'fourteen', 15: 'fifteen',
+                    16: 'sixteen', 17: 'seventeen', 18: 'eighteen', 19: 'nineteen', 20: 'twenty',
+                    30: 'thirty', 40: 'fourty', 50: 'fifty', 60: 'sixty', 70: 'seventy', 80: 'eighty',
+                    90: 'ninety', 100: 'onehundred'}
+
+    if 1 <= number <= 19:  # For numbers 1-19, play the corresponding file directly
+        sound_manager.add_to_queue([folder_path, number_to_word[number]], 'number_playback')
+    elif 20 <= number <= 99:  # For numbers 20-99, break them down into tens and ones
+        tens = number // 10 * 10  # Get the tens part
+        ones = number % 10  # Get the ones part
+        sound_manager.add_to_queue([folder_path, number_to_word[tens]], 'number_playback')  # Play the tens part
+        if ones != 0:  # If there are ones left, play the ones part
+            sound_manager.add_to_queue([folder_path, number_to_word[ones]], 'number_playback')
+    elif 100 == number:  # For 100, play the corresponding file directly
+        sound_manager.add_to_queue([folder_path, number_to_word[number]], 'number_playback')
+
+
+#---- Play Number Sound In Incremements of 5
+def play_number_sound_increments(armor, folder_path):
+    increment = round(armor / 5) * 5  # Round to the nearest multiple of 5
+    play_number_sound(increment, folder_path)
+
+
+#---- Armor Readout
+power_level_is_100_played = True  # Flag to prevent power_level_is_100 from being played multiple times when armor is 100.
+
+def armor_readout(armor):
+    global power_level_is_100_played
+    if 1 <= armor <= 49:
+        sound_manager.play_sound_simultaneously(['misc', 'fuzzdouble'], 'number_playback')
+        sound_manager.add_to_queue(['armor', 'power'], 'number_playback')
+        play_number_sound_increments(armor, 'number')
+        sound_manager.add_to_queue(['percent'], 'number_playback')
+    elif 50 <= armor <= 99:
+        sound_manager.play_sound_simultaneously(['misc', 'fuzzhighdouble'], 'number_playback')
+        sound_manager.add_to_queue(['armor', 'power'], 'number_playback')
+        play_number_sound_increments(armor, 'number')
+        sound_manager.add_to_queue(['percent'], 'number_playback')
+    else:
+        sound_manager.play_sound_simultaneously(['misc', 'fuzzhighdouble'], 'number_playback')
+        sound_manager.add_to_queue(['armor', 'power_level_is'], 'number_playback')
+        play_number_sound_increments(armor, 'number')
+        sound_manager.add_to_queue(['percent'], 'number_playback')
+        power_level_is_100_played = True
+
+
+#---- Healing Items
+def healing_items(command):
+    if command == 'heal':
+        if health >= 100:
+            sound_manager.play_sound_simultaneously(['items', 'medshotno1'], 'medical_administer')
+        else:
+            sound_manager.play_sound_simultaneously(['items', 'smallmedkit1'], 'medical_administer')
+        
+    elif command == 'repair':
+        if armor >= 100:
+            sound_manager.play_sound_simultaneously(['items', 'suitchargeno1'], 'medical_administer')
+        else:
+            sound_manager.play_sound_simultaneously(['items', 'hl2', 'battery_pickup'], 'medical_administer')
         
 
 ########################################################################
@@ -375,7 +441,11 @@ while True:
             # hazard_turn_counter += random.randint(1, 5)  # Increment the hazard counter
             thud = random.randint(1, 50)  # This randomises damage value for each hit
             
+            armor_alarm(health, armor, thud=thud)
+
             armor, health = physical_hit(armor, health, thud)
+
+            power_level_is_100_played = False
 
             if health <= 0 and not is_dead:
                 death_noise(thud)
@@ -383,8 +453,6 @@ while True:
             
             if health > 0:  # If health is still above 0 after physical hit
                 hit_sound(thud)
-
-                armor_alarm(armor, thud=thud)
 
                 if armor <= 0 and not armor_was_compromised:  # Only call armor_compromised if armor is not already compromised
                     armor_compromised(armor)  # Checks if armor is compromised after each hit
@@ -402,7 +470,11 @@ while True:
             # just_had_hazard = True
             hazard = random.randint(1, 40)
 
+            armor_alarm(health, armor, hazard=hazard)
+
             armor, health = energy_hit(armor, health, hazard)
+
+            power_level_is_100_played = False
 
             if health <= 0 and not is_dead:
                 death_noise(hazard)
@@ -412,8 +484,6 @@ while True:
                 energy_type = random.choice(energy_types)
                 hazard_sound(energy_type)
                 
-                armor_alarm(hazard=hazard)
-
                 if armor <= 0 and not armor_was_compromised:
                     armor_compromised(armor)
                     armor_was_compromised = True
@@ -425,6 +495,7 @@ while True:
         #-----
 
         case 'heal':
+            healing_items(user_input)
             health = apply_restoration(health, 25, 100)
             is_dead = False  # Reset the flag to allow death_noise to be called again.
             print("---- Health has been restored!")
@@ -432,9 +503,17 @@ while True:
         #-----
 
         case 'repair':
+            healing_items(user_input)
             armor = apply_restoration(armor, 25, 100)
+            if not power_level_is_100_played:
+                armor_readout(armor)
             armor_was_compromised = False  # Reset the flag to allow armor_compromised to be called again.
             print("---- Armor has been repaired!")
+
+        #-----
+
+        case 'armor':
+            armor_readout(armor)
 
         #-----
 
@@ -469,5 +548,3 @@ while True:
 
 
 ########################################################################
-
-# Create fuzz thresholds for both fuzz sounds. Should add a new function to handle this, by using a new command called "armor".
