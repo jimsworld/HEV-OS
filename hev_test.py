@@ -1,4 +1,4 @@
-### HEV OS v5.99 ###
+### HEV OS v6.00 ###
 
 #---- Imports
 import random
@@ -366,7 +366,7 @@ def play_number_sound(number, folder_path):
 
 #---- Play Number Sound In Incremements of 5
 def play_number_sound_increments(armor, folder_path):
-    increment = round(armor / 5) * 5  # Round to the nearest multiple of 5
+    increment = math.floor(armor / 5) * 5  # Round down to the nearest multiple of 5
     play_number_sound(increment, folder_path)
 
 
@@ -375,22 +375,24 @@ power_level_is_100_played = True  # Flag to prevent power_level_is_100 from bein
 
 def armor_readout(armor):
     global power_level_is_100_played
-    if 1 <= armor <= 49:
-        sound_manager.play_sound_simultaneously(['misc', 'fuzzdouble'], 'number_playback')
-        sound_manager.add_to_queue(['armor', 'power'], 'number_playback')
+
+    fuzz_sounds = {
+        ('misc', 'fuzzdouble'),
+        ('misc', 'fuzzhighdouble')
+    }
+    fuzz_double_random = random.choice(list(fuzz_sounds))
+
+    if 1 <= armor <= 100:
+        sound_manager.play_sound_simultaneously(fuzz_double_random, 'number_playback')
+        if armor == 100:
+            sound_manager.add_to_queue(['armor', 'power_level_is'], 'number_playback')
+            power_level_is_100_played = True
+        else:
+            sound_manager.add_to_queue(['armor', 'power'], 'number_playback')
         play_number_sound_increments(armor, 'number')
         sound_manager.add_to_queue(['percent'], 'number_playback')
-    elif 50 <= armor <= 99:
-        sound_manager.play_sound_simultaneously(['misc', 'fuzzhighdouble'], 'number_playback')
-        sound_manager.add_to_queue(['armor', 'power'], 'number_playback')
-        play_number_sound_increments(armor, 'number')
-        sound_manager.add_to_queue(['percent'], 'number_playback')
-    else:
-        sound_manager.play_sound_simultaneously(['misc', 'fuzzhighdouble'], 'number_playback')
-        sound_manager.add_to_queue(['armor', 'power_level_is'], 'number_playback')
-        play_number_sound_increments(armor, 'number')
-        sound_manager.add_to_queue(['percent'], 'number_playback')
-        power_level_is_100_played = True
+    else:  # If the armor value is 0, play a warning sound.
+        sound_manager.add_to_queue(['misc', 'warning2'], 'number_playback')
 
 
 #---- Healing Items
@@ -496,7 +498,7 @@ while True:
 
         case 'heal':
             healing_items(user_input)
-            health = apply_restoration(health, 25, 100)
+            health = apply_restoration(health, 15, 100)
             is_dead = False  # Reset the flag to allow death_noise to be called again.
             print("---- Health has been restored!")
 
@@ -504,7 +506,7 @@ while True:
 
         case 'repair':
             healing_items(user_input)
-            armor = apply_restoration(armor, 25, 100)
+            armor = apply_restoration(armor, 15, 100)
             if not power_level_is_100_played:
                 armor_readout(armor)
             armor_was_compromised = False  # Reset the flag to allow armor_compromised to be called again.
@@ -548,3 +550,5 @@ while True:
 
 
 ########################################################################
+
+# Create Health and Armor Recharge functionality, or try to implement a way to recharge health and armor over time.
