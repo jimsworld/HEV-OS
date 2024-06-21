@@ -1,4 +1,4 @@
-### HEV OS v6.00 ###
+### HEV OS v6.01 ###
 
 #---- Imports
 import random
@@ -128,6 +128,29 @@ class SoundManager:
         self.sound_queue.clear()  # Clear the sound queue
         self.play_sound(sound_path, channel_name)  # Play the specified sound
 
+    def get_sound_length(self, sound_path):
+        """Return the length of the sound at the specified path in seconds."""
+        try:
+            current_dict = self.hev_common  # Start with the base dictionary.
+            for key in sound_path:  # Iterate through the parts of the path to navigate the nested dictionaries.
+                current_dict = current_dict[key]
+            return current_dict.get_length()  # Return the length of the sound at the final key.
+        except KeyError:  # If the sound path is invalid, print a warning.
+            print(f"Warning: The sound at path '{sound_path}' does not exist.")
+            return 0
+    
+    def play_sound_for_duration(self, sound_files, channel_name, duration):
+        """Play a sound on the specified channel for the specified duration."""
+        start_time = time.time()
+        while time.time() - start_time < duration:
+            self.play_sound(sound_files, channel_name)
+            time.sleep(self.get_sound_length(sound_files))
+        self.stop_sound(channel_name)
+
+    def stop_sound(self, channel_name='hit'):
+        """Stop the sound that is currently playing on the specified channel."""
+        self.channels[channel_name].stop()
+
 
 ########################################################################
 
@@ -165,7 +188,7 @@ def enforce_non_negative(armor, health):
 
 ########################################################################
 
-############ Damage Application and Healing ############
+############ Damage Application and Healing Items ############
 
 #---- Damage Application for Physical
 def physical_hit(armor, health, thud):
@@ -366,14 +389,14 @@ def play_number_sound(number, folder_path):
 
 #---- Play Number Sound In Incremements of 5
 def play_number_sound_increments(armor, folder_path):
-    increment = math.floor(armor / 5) * 5  # Round down to the nearest multiple of 5
+    increment = round(armor / 5) * 5  # Round to the nearest multiple of 5
     play_number_sound(increment, folder_path)
 
 
 #---- Armor Readout
 power_level_is_100_played = True  # Flag to prevent power_level_is_100 from being played multiple times when armor is 100.
 
-def armor_readout(armor):
+def armor_readout(command, armor):
     global power_level_is_100_played
 
     fuzz_sounds = {
@@ -389,8 +412,14 @@ def armor_readout(armor):
             power_level_is_100_played = True
         else:
             sound_manager.add_to_queue(['armor', 'power'], 'number_playback')
-        play_number_sound_increments(armor, 'number')
+        
+        if command == 'repair':  # If the command is repair, play the armor value in increments of 5.
+            play_number_sound_increments(armor, 'number')
+        elif command == "armor":  # If the command is armor, plays the exact armor value.
+            play_number_sound(armor, 'number')
+        
         sound_manager.add_to_queue(['percent'], 'number_playback')
+    
     else:  # If the armor value is 0, play a warning sound.
         sound_manager.add_to_queue(['misc', 'warning2'], 'number_playback')
 
@@ -408,7 +437,11 @@ def healing_items(command):
             sound_manager.play_sound_simultaneously(['items', 'suitchargeno1'], 'medical_administer')
         else:
             sound_manager.play_sound_simultaneously(['items', 'hl2', 'battery_pickup'], 'medical_administer')
-        
+
+
+########################################################################
+
+############ Heal and Repair over time ############
 
 ########################################################################
 
@@ -508,14 +541,14 @@ while True:
             healing_items(user_input)
             armor = apply_restoration(armor, 15, 100)
             if not power_level_is_100_played:
-                armor_readout(armor)
+                armor_readout(user_input, armor)
             armor_was_compromised = False  # Reset the flag to allow armor_compromised to be called again.
             print("---- Armor has been repaired!")
 
         #-----
 
         case 'armor':
-            armor_readout(armor)
+            armor_readout(user_input, armor)
 
         #-----
 
