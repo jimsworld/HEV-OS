@@ -1,4 +1,4 @@
-### HEV OS v6.01 ###
+### HEV OS v6.02 ###
 
 #---- Imports
 import random
@@ -158,7 +158,7 @@ class SoundManager:
 
 def calculate_physical(armor, health, thud):
     if armor >= thud:
-        armor -= thud
+        armor -= math.floor(thud * 0.80 / 2)  # Applies 80% divided by 2 of thud to armor, if armor is enough.
         health -= math.floor(thud * 0.20)  # Applies 20% of thud to health, if armor is enough.
     else:
         excess_physical = thud - armor
@@ -214,7 +214,7 @@ def apply_restoration(current_value, amount, max_value):
 
 ########################################################################
 
-############ Sound Engine ############
+############ Suit Functions ############
 
 sound_manager = SoundManager()
 
