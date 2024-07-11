@@ -4,6 +4,7 @@
 import random
 import math
 import os
+import time
 import pygame
 pygame.init()
 

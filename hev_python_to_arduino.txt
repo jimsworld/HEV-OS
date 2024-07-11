@@ -1,0 +1,103 @@
+#define COMBAT_MODE
+
+********************************************************
+
+=== COMBAT MODE (HEV OS) ===
+
+- Toggling ON Combat Mode will enable clash input/detection.
+
+- A togglable mode that simulates the HEV Suit user sustaining health/armor damage.
+
+- This mode should be accessible while in ON or OFF state.
+
+- Combat Mode should toggle on the the rest of HEV OS' features and hopefully the additional features detailed below
+  that are better suited for ProffieOS/Arduino.
+
+********************************************************
+
+======== Additions to current Python program ========
+
+*** Healing and Repairing - Over Time ***
+
+- To regenerate health and armor, hold AUX and POW respectively.
+  It should take 10s to recharge from 0 - 100.
+  The original game has sound effects that play when healing and repairing, I have these ready.
+  They behave exactly the same as:
+  - bgnlock
+  - lock
+  - endlock
+
+*** Cooldown/Timer Function ***
+
+- This would be a configurable function that is set up and called before allowing certain voice lines/sounds to play.
+
+********************************************************
+
+======== Changes from current Python program ========
+- In this section I'd like to discuss changes in behaviour that ProffieOS/Arduino can handle better.
+
+*** 'Hit Detection' - Physical Damage *** (Will need testing)
+
+- 'Hit Detection', depending on the amount of force applied via a clash(/hit), a value between 1 - 50 is passed
+  to the hit_sound function in HEV OS.
+  Currently, this is applied via user input.
+
+- Ideally it should act similarly to fett263's "Responsive Clash", where the higher the input recieved
+  the bigger the clash effect and (if set up on the ProffieOS user's end) the louder the sound.
+  In HEV OS' case, the higher the input receieved, the higher the damage sustained to health and armor.
+  All of the calculations are done via HEV OS.
+
+
+*** Voice Line Playback Consistency ***
+
+- This section is to do with the consistency of certain voice line types and how often they are randomly played. 
+
+- This would likely be solved by implementing a realtime "cooldown" timer function, which is something
+  I believe ProffieOS/Arduino can handle better.
+  
+- Currently, HEV OS has a percentage based chance of playing a voice line, which is good, but it would be better
+  to have a cooldown function that is called before rolling a percentage based voice line. The idea is so
+  that the same voice line type doesn't potentially play consistently one after the other.
+
+- Cooldowns added into existing HEV OS functions would include:
+	- Hit - Physical Damage voice lines 	- 15s cooldown, before another one can play.
+	- Health Alert voice lines		 		- 30s cooldown, before another...
+	- Morphine Shot voice line				- 300s cooldown, before another...
+	- Hazard - Energy Damage			 	- 10 - 20mins cooldown, before another...
+
+
+*** Hazard - Energy Damage ***
+
+- Currently, hazards are triggered by user input in the Python program. I have a better idea for this. Below is a snippet
+  of the current hazard function in HEV OS. (from README.md)
+
+
+"- Upon a hazard, armor will take damage ranging from 1 - 40. Health is unaffected, as
+  long as there is armor.
+- Randomly, 1 of 6 hazard sounds will play. The hazards themselves do not currently
+  have a sound effect, so, a voice line will play detecting the random hazard.
+- Current hazard types are [heat, shock, bio hazard, blood toxins, chemical, radiation]
+- If either of the 4 [bio hazard, blood toxins, chemical, radiation] voice lines play,
+  there is a 50% chance (default) that an additional voice line will play, stating that vital signs are dropping."
+
+
+- I believe hazards can be better implemented using a cooldown/timer function to give them a chance to trigger randomly,
+  but not too often, using 2 time parameters.
+  Example: a hazard will have a chance to happen automatically once every 10 - 20mins.
+  This would be a good way to simulate the HEV Suit user coming into contact with hazardous environments.
+
+********************************************************
+
+*** Other ideas *** (Not necessary, but would be cool to look into after the above is implemented)
+
+- Certain hazards can damage over time, instead of applying a flat value instantly.
+  (- would require a cooldown/timer function to be implemented)
+  Out of the 6 hazard types, 4 of them should only be able to do this:
+  [heat, shock, bio hazard, blood toxins, chemical, radiation]
+  These 4 hazard types are the only ones that currently have a chance to trigger an additional voice line,
+  stating that vital signs are dropping.
+
+- Blood Toxins alteration.
+  (- would require a cooldown/timer function to be implemented)
+  Maybe this one could randomly proc if armor is 0, a hazard has been applied to health and the user hasn't
+  healed in over 5 minutes.
