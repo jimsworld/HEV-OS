@@ -67,13 +67,11 @@
 - Additionally, there is a 44% chance (default) if the aforementioned major hit detected
   line played, the suit will play a voice line that administers a morphine shot:
 	- if hit >= 25:
-		play.random major_hit.wav
-		play.major_hit_detected.wav - (40% chance)
+		play random major_hit.wav, then, play.major_hit_detected.wav - (40% chance)
 		if major_detected.wav played:
 			play.morphine_shot.wav - (44% chance)
 	- else:
-		play.random minor_hit.wav
-		play.minor_hit_detected.wav - (40% chance)
+		play random minor_hit.wav, then, play.minor_hit_detected.wav - (40% chance)
 
 ========   Hazard - Energy Damage   ========
 
