@@ -27,7 +27,7 @@ health_dropping_chance = 1.0  # 50% chance
 # Armor Compromised
 compromised_chance = 1.0  # 50% chance
 
-# Health Threshold Alerts
+# Health Alerts
 near_death_chance = 1.0  # 90% chance
 health_critical_chance = 1.0  # 65% chance
 seek_medic_chance = 1.0  # 50% chance
@@ -76,7 +76,7 @@ class SoundManager:
             'hit_detected': pygame.mixer.Channel(1),
             'hazard': pygame.mixer.Channel(2),
             'armor_alerts': pygame.mixer.Channel(3),
-            'health_threshold_alerts': pygame.mixer.Channel(4),
+            'health_alerts': pygame.mixer.Channel(4),
             'medical_administer': pygame.mixer.Channel(5),
             'hazard_administer': pygame.mixer.Channel(6),
             'number_playback': pygame.mixer.Channel(7)
@@ -281,17 +281,18 @@ def hazard_sound(energy_types):
             if random.random() < health_dropping_chance:
                 while pygame.mixer.get_busy():
                     pygame.time.wait(100)
-                sound_manager.add_to_queue(health_dropping_sound, 'health_threshold_alerts')
+                sound_manager.add_to_queue(health_dropping_sound, 'health_alerts')
 
 
 #---- Armor Alarm
 def armor_alarm(health, armor, thud=None, hazard=None):
-    if health and armor > 0 and thud and thud >= 30:
-        armor_buzz = ['misc', 'buzzdouble']
-        sound_manager.play_sound_simultaneously(armor_buzz, 'armor_alerts')
-    if health and armor > 0 and hazard and hazard >= 30:
-        armor_buzz = ['misc', 'buzzdouble']
-        sound_manager.play_sound_simultaneously(armor_buzz, 'armor_alerts')
+    if health and armor > 0:
+        if thud and thud >= 30:
+            armor_buzz = ['misc', 'buzzdouble']
+            sound_manager.play_sound_simultaneously(armor_buzz, 'armor_alerts')
+        if hazard and hazard >= 30:
+            armor_buzz = ['misc', 'buzzdouble']
+            sound_manager.play_sound_simultaneously(armor_buzz, 'armor_alerts')
 
 
 #---- Armor Compromised
@@ -305,20 +306,20 @@ def armor_compromised(armor):
         sound_manager.play_next_in_queue()
 
 
-#---- Health Threshold Alerts
-def health_threshold_alerts(health):
-    def seek_medic_helper(health, health_range, sound_queue, chance, seek_medic_chance=None):
+#---- Health Alerts
+def health_alerts(health):
+    def health_alert_helper(health, health_range, sound_queue, chance, seek_medic_chance=None):
         if health_range[0] <= health <= health_range[1] and random.random() < chance:
             while pygame.mixer.get_busy():
                 pygame.time.wait(100)
-            sound_manager.add_to_queue(sound_queue, 'health_threshold_alerts')
+            sound_manager.add_to_queue(sound_queue, 'health_alerts')
             if seek_medic_chance and random.random() < seek_medic_chance:
-                sound_manager.add_to_queue(['medical', 'health', 'booplow_seek_medic'], 'health_threshold_alerts')
+                sound_manager.add_to_queue(['medical', 'health', 'booplow_seek_medic'], 'health_alerts')
             sound_manager.play_next_in_queue()
     
-    seek_medic_helper(health, (1, 6), ['medical', 'health', 'boophigh_near_death'], near_death_chance, seek_medic_chance)
-    seek_medic_helper(health, (7, 30), ['medical', 'health', 'boophigh_health_critical'], health_critical_chance, seek_medic_chance)
-    seek_medic_helper(health, (31, 50), ['medical', 'health', 'booplow_seek_medic'], seek_medic_chance)
+    health_alert_helper(health, (1, 6), ['medical', 'health', 'boophigh_near_death'], near_death_chance, seek_medic_chance)
+    health_alert_helper(health, (7, 30), ['medical', 'health', 'boophigh_health_critical'], health_critical_chance, seek_medic_chance)
+    health_alert_helper(health, (31, 50), ['medical', 'health', 'booplow_seek_medic'], seek_medic_chance)
 
 
 #---- Morphine Shot
@@ -428,16 +429,16 @@ def armor_readout(command, armor):
 #---- Healing Items
 def healing_items(command):
     if command == 'heal':
-        if health >= 100:
-            sound_manager.play_sound_simultaneously(['items', 'medshotno1'], 'medical_administer')
-        else:
+        if health < 100:
             sound_manager.play_sound_simultaneously(['items', 'smallmedkit1'], 'medical_administer')
+        else:
+            sound_manager.play_sound_simultaneously(['items', 'medshotno1'], 'medical_administer')
         
     elif command == 'repair':
-        if armor >= 100:
-            sound_manager.play_sound_simultaneously(['items', 'suitchargeno1'], 'medical_administer')
-        else:
+        if armor < 100:
             sound_manager.play_sound_simultaneously(['items', 'hl2', 'battery_pickup'], 'medical_administer')
+        else:
+            sound_manager.play_sound_simultaneously(['items', 'suitchargeno1'], 'medical_administer')
 
 
 ########################################################################
@@ -458,8 +459,9 @@ while True:
         print("\nHEV Suit test ready. Available commands:"
             "\n'hit':     physical attack between 1 - 50"
             "\n'hazard':  energy hazard between 1 - 40"
-            "\n'heal':    heals 25HP"
-            "\n'repair':  repairs 25AP"
+            "\n'heal':    heals 15HP"
+            "\n'repair':  repairs 15AP"
+            "\n'armor':   checks current armor level"
             "\n'quit':    exits.")
         show_instructions = False  # Stops repetitive instructions
 
@@ -494,7 +496,7 @@ while True:
                     armor_compromised(armor)  # Checks if armor is compromised after each hit
                     armor_was_compromised = True  # Set flag to prevent armor_compromised from being called twice
 
-                health_threshold_alerts(health)
+                health_alerts(health)
             
                 morphine_shot(thud)
 
@@ -524,9 +526,9 @@ while True:
                     armor_compromised(armor)
                     armor_was_compromised = True
 
-                health_threshold_alerts(health)
+                health_alerts(health)
             
-            print(f"---- {energy_type.title()} hazard, -{hazard} energy damage")
+            print(f"---- {energy_type.title()} Hazard, -{hazard} energy damage")
 
         #-----
 
@@ -560,7 +562,13 @@ while True:
         #-----
 
         case _:
-            print("Unknown command. Please enter 'hit', 'heal', 'repair' or 'quit'.")
+            print("Unknown command. Please enter:"
+                  "\n'hit'"
+                  "\n'hazard'"
+                  "\n'heal'"
+                  "\n'repair'"
+                  "\n'armor'"
+                  "\n'quit'")
 
     # #-----Random Hazard
     # if hazard_turn_counter >= hazard_turn:  # Triggers a random hazard when threshold is met

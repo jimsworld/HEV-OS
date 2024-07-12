@@ -32,11 +32,11 @@
 
 - When health is at certain thresholds, there is a chance for 3 different voice lines to
   play:
-	- if health > 30 and <= 50:
+	- if health <= 50:
 		play.seek_medic.wav - (50% chance)
-	- elif health > 6 and <= 30:
+	- elif health <= 30:
 		play.health_critical.wav - (65% chance)
-	- elif health > 1 and <= 6:
+	- elif health <= 6 and > 1:
 		play.near_death.wav - (90% chance)
 
 - By default, all 3 have a chance to play and can be configured in the top config.
