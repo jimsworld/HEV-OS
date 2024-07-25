@@ -8,6 +8,8 @@ import time
 import pygame
 pygame.init()
 
+import tkinter as tk
+
 #---- Global Variables
 armor = 100
 health = 100
