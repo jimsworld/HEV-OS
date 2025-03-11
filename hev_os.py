@@ -1,4 +1,4 @@
-### HEV OS v6.02 ###
+### HEV OS v6.03 ###
 
 #---- Imports
 import random
@@ -19,19 +19,19 @@ show_instructions = True
 
 #---- Additional Voiceline Chances:
 # Hit Detected
-major_detected_chance = 0.4  # 40% chance
-minor_detected_chance = 0.4  # 40% chance
-
-# Hazard Sound Follow Up 
-health_dropping_chance = 1.0  # 50% chance
+major_detected_chance = 1.0  # 40% chance
+minor_detected_chance = 1.0  # 40% chance
 
 # Armor Compromised
 compromised_chance = 1.0  # 50% chance
 
+# Hazard Sound Follow Up 
+health_dropping_chance = 1.0  # 50% chance
+
 # Health Alerts
-near_death_chance = 1.0  # 90% chance
-health_critical_chance = 1.0  # 65% chance
 seek_medic_chance = 1.0  # 50% chance
+health_critical_chance = 1.0  # 65% chance
+near_death_chance = 1.0  # 90% chance
 
 # Morphine Shot
 morphine_chance = 1.0  # 44% chance
